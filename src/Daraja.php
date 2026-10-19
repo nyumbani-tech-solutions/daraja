@@ -106,7 +106,6 @@ class Daraja
      */
     public function registerC2BUrls(string $validationUrl, string $confirmationUrl): Response
     {
-        //  Send the request
         return $this->authorised()->post('mpesa/c2b/v2/registerurl', [
             'ShortCode' => $this->shortCode->value,
             'ResponseType' => 'Completed',
