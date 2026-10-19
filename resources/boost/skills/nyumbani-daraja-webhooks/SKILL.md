@@ -12,6 +12,11 @@ Safaricom posts to the app's routes, so the app owns the routes, the parsing and
 ## Route
 Put the hooks outside any auth group, behind `EnsureRequestIsFromSafaricom`, and exempt from CSRF:
 ```php
+use App\Http\Controllers\DarajaHookController;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Support\Facades\Route;
+use Nyumbani\Daraja\Http\Middleware\EnsureRequestIsFromSafaricom;
+
 Route::prefix('hooks/daraja')
     ->name('hooks.daraja.')
     ->middleware(EnsureRequestIsFromSafaricom::class)

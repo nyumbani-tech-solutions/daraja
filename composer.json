@@ -21,6 +21,9 @@
 		"illuminate/support": "^12.0||^13.0",
 		"illuminate/http": "^12.0||^13.0"
 	},
+	"suggest": {
+		"nyumbani/essentials": "Serves the Daraja docs at /nyumbani-daraja/docs in the local environment."
+	},
 	"autoload": {
 		"psr-4": {
 			"Nyumbani\\Daraja\\": "src/"

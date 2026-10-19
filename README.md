@@ -15,6 +15,8 @@ To use another environment for one client, call `live()` or `sandbox()`: `Daraja
 Build a `ShortCode` wherever your credentials live (env, config or a database row):
 
 ```php
+use Nyumbani\Daraja\ShortCode;
+
 $shortCode = new ShortCode(
     value: '174379',
     consumerKey: '...',
@@ -27,6 +29,8 @@ $shortCode = new ShortCode(
 ## Calls
 
 ```php
+use Nyumbani\Daraja\Daraja;
+
 $daraja = Daraja::for($shortCode);
 
 $daraja->stkPush('0712345678', 100, 'INV-1', 'Order payment', $callbackUrl);
@@ -42,6 +46,10 @@ Each call returns Laravel's HTTP client response, so use `successful()`, `failed
 Validation, confirmation, Pull and STK push callbacks are your app's routes, so it decides which paybill a request belongs to, how to read the payload and what to do with it. The package only guards them:
 
 ```php
+use App\Http\Controllers\ConfirmationController;
+use Illuminate\Support\Facades\Route;
+use Nyumbani\Daraja\Http\Middleware\EnsureRequestIsFromSafaricom;
+
 Route::post('hooks/{paybill}/confirm', [ConfirmationController::class, 'store'])
     ->middleware(EnsureRequestIsFromSafaricom::class);
 ```

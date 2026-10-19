@@ -16,6 +16,8 @@ Use `nyumbani/daraja` for every M-Pesa call. Never write another Daraja HTTP cli
 
 ## Build a ShortCode
 ```php
+use Nyumbani\Daraja\ShortCode;
+
 $shortCode = new ShortCode(
     value: '174379',
     consumerKey: $key,
@@ -28,6 +30,8 @@ Build it wherever the credentials live. The package does not read them itself.
 
 ## Calls
 ```php
+use Nyumbani\Daraja\Daraja;
+
 $daraja = Daraja::for($shortCode);
 
 $daraja->stkPush($phone, $amount, 'INV-1', 'Order payment', $callbackUrl);
