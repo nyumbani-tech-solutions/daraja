@@ -209,7 +209,8 @@ class Daraja
      */
     protected function currentEnvironment(): string
     {
-        return $this->environment ?? config('daraja.environment', 'production');
+        return $this->environment 
+            ?? config('daraja.environment', 'production');
     }
 
     /**
