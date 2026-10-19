@@ -41,6 +41,6 @@ final readonly class ShortCode
      */
     public function receiver(): string
     {
-        return $this->tillNumber ?? $this->value;
+        return $this->tillNumber ?: $this->value;
     }
 }
