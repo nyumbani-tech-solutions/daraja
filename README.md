@@ -2,25 +2,32 @@
 
 A small Laravel client for Safaricom's Daraja API: STK push, C2B URL registration and Pull transactions, plus the payload parsers, middleware, and response helpers to receive them. It requires only Laravel.
 
-## Credentials
+## Short code
 
-Build a `Credentials` object wherever your credentials live (env, config or a database row):
+Set the environment, `sandbox` or `production`, in your `.env` (it defaults to `production`):
+
+```
+DARAJA_ENVIRONMENT=sandbox
+```
+
+To use another environment for one client, call `live()` or `sandbox()`: `Daraja::for($shortCode)->sandbox()`.
+
+Build a `ShortCode` wherever your credentials live (env, config or a database row):
 
 ```php
-$credentials = new Credentials(
-    shortCode: '174379',
+$shortCode = new ShortCode(
+    value: '174379',
     consumerKey: '...',
     consumerSecret: '...',
     passKey: '...',
     tillNumber: null,                  // set for Buy Goods
-    environment: Environment::Production,
 );
 ```
 
 ## Calls
 
 ```php
-$daraja = Daraja::for($credentials);
+$daraja = Daraja::for($shortCode);
 
 $daraja->stkPush('0712345678', 100, 'INV-1', 'Order payment', $callbackUrl);
 $daraja->registerC2BUrls($validationUrl, $confirmationUrl);

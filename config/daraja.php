@@ -3,6 +3,30 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Environment
+    |--------------------------------------------------------------------------
+    |
+    | The Daraja environment every call is made against: "sandbox" or
+    | "production".
+    |
+    */
+    'environment' => env('DARAJA_ENVIRONMENT', 'production'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Base urls
+    |--------------------------------------------------------------------------
+    |
+    | The base url of the Daraja API for each environment.
+    |
+    */
+    'base_urls' => [
+        'sandbox' => 'https://sandbox.safaricom.co.ke',
+        'production' => 'https://api.safaricom.co.ke',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Safaricom IP addresses
     |--------------------------------------------------------------------------
     |

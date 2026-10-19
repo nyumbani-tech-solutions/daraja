@@ -2,27 +2,24 @@
 
 namespace Nyumbani\Daraja;
 
-use Nyumbani\Daraja\Enums\Environment;
-
 /**
- * The credentials of one paybill or till, which an app builds from its env, config or database.
+ * One paybill or till and the credentials it is called with, which an app builds from its env, config or database.
  *
  * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
  */
-final readonly class Credentials
+final readonly class ShortCode
 {
     /**
-     * Create the credentials, where a till number makes STK pushes pay a till (Buy Goods) instead of a paybill
+     * Create the short code, where a till number makes STK pushes pay a till (Buy Goods) instead of a paybill
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
      */
     public function __construct(
-        public string $shortCode,
+        public string $value,
         public string $consumerKey,
         public string $consumerSecret,
         public ?string $passKey = null,
         public ?string $tillNumber = null,
-        public Environment $environment = Environment::Production,
     ) {}
 
     /**
@@ -44,6 +41,6 @@ final readonly class Credentials
      */
     public function receiver(): string
     {
-        return $this->tillNumber ?? $this->shortCode;
+        return $this->tillNumber ?? $this->value;
     }
 }

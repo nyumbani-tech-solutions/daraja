@@ -18,20 +18,53 @@ use Nyumbani\Daraja\Exceptions\DarajaException;
 class Daraja
 {
     /**
+     * The environment set on this client, which takes the place of the configured one
+     */
+    protected ?string $environment = null;
+
+    /**
      * Create the client
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
      */
-    public function __construct(protected Credentials $credentials) {}
+    public function __construct(protected ShortCode $shortCode) {}
 
     /**
-     * Get a client for the credentials
+     * Get a client for the short code
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
      */
-    public static function for(Credentials $credentials): static
+    public static function for(ShortCode $shortCode): static
     {
-        return new static($credentials);
+        return new static($shortCode);
+    }
+
+    /**
+     * Make the calls against Daraja's live environment, whatever is configured
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function live(): static
+    {
+        //  Set the environment
+        $this->environment = 'production';
+
+        //  Return the client
+        return $this;
+    }
+
+    /**
+     * Make the calls against Daraja's sandbox, whatever is configured
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function sandbox(): static
+    {
+        //  Set the environment
+        $this->environment = 'sandbox';
+
+        //  Return the client
+        return $this;
     }
 
     /**
@@ -42,7 +75,7 @@ class Daraja
     public function accessToken(): string
     {
         //  Build the cache key
-        $key = "daraja.token.{$this->credentials->environment->value}.{$this->credentials->shortCode}";
+        $key = "daraja.token.{$this->currentEnvironment()}.{$this->shortCode->value}";
 
         //  Return the cached token
         if ($token = Cache::get($key)) {
@@ -51,7 +84,7 @@ class Daraja
 
         //  Request a new token
         $response = $this->request()
-            ->withBasicAuth($this->credentials->consumerKey, $this->credentials->consumerSecret)
+            ->withBasicAuth($this->shortCode->consumerKey, $this->shortCode->consumerSecret)
             ->get('oauth/v1/generate', ['grant_type' => 'client_credentials']);
 
         //  Never cache a failure
@@ -75,7 +108,7 @@ class Daraja
     {
         //  Send the request
         return $this->authorised()->post('mpesa/c2b/v2/registerurl', [
-            'ShortCode' => $this->credentials->shortCode,
+            'ShortCode' => $this->shortCode->value,
             'ResponseType' => 'Completed',
             'ValidationURL' => $validationUrl,
             'ConfirmationURL' => $confirmationUrl,
@@ -90,7 +123,7 @@ class Daraja
     public function registerPullUrl(string $nominatedNumber, string $callbackUrl): Response
     {
         return $this->authorised()->post('pulltransactions/v1/register', [
-            'ShortCode' => $this->credentials->shortCode,
+            'ShortCode' => $this->shortCode->value,
             'RequestType' => 'Pull',
             'NominatedNumber' => daraja_phone($nominatedNumber),
             'CallBackURL' => $callbackUrl,
@@ -110,7 +143,7 @@ class Daraja
         string $callbackUrl,
     ): Response {
         //  The pass key is what signs the request
-        if (! $this->credentials->passKey) {
+        if (! $this->shortCode->passKey) {
             throw new LogicException('An STK push needs the pass key of the shortcode.');
         }
 
@@ -119,13 +152,13 @@ class Daraja
 
         //  Send the request
         return $this->authorised()->post('mpesa/stkpush/v1/processrequest', [
-            'BusinessShortCode' => $this->credentials->shortCode,
-            'Password' => base64_encode($this->credentials->shortCode.$this->credentials->passKey.$timestamp),
+            'BusinessShortCode' => $this->shortCode->value,
+            'Password' => base64_encode($this->shortCode->value.$this->shortCode->passKey.$timestamp),
             'Timestamp' => $timestamp,
-            'TransactionType' => $this->credentials->transactionType(),
+            'TransactionType' => $this->shortCode->transactionType(),
             'Amount' => (int) round($amount),
             'PartyA' => $phone = daraja_phone($phone),
-            'PartyB' => $this->credentials->receiver(),
+            'PartyB' => $this->shortCode->receiver(),
             'PhoneNumber' => $phone,
             'CallBackURL' => $callbackUrl,
             'AccountReference' => $accountReference,
@@ -151,7 +184,7 @@ class Daraja
 
         //  Send the request
         return $this->authorised()->post('pulltransactions/v1/query', [
-            'ShortCode' => $this->credentials->shortCode,
+            'ShortCode' => $this->shortCode->value,
             'StartDate' => $from->format('Y-m-d H:i:s'),
             'EndDate' => $to->format('Y-m-d H:i:s'),
             'OffSetValue' => (string) $offset,
@@ -171,13 +204,23 @@ class Daraja
     }
 
     /**
+     * Get the environment the calls are made against, which is the configured one unless it was set
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    protected function currentEnvironment(): string
+    {
+        return $this->environment ?? config('daraja.environment', 'production');
+    }
+
+    /**
      * Get a request against the base url of the environment
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
      */
     protected function request(): PendingRequest
     {
-        return Http::baseUrl($this->credentials->environment->baseUrl())
+        return Http::baseUrl(config("daraja.base_urls.{$this->currentEnvironment()}"))
             ->acceptJson()
             ->timeout(30);
     }
