@@ -30,6 +30,10 @@ class EnsureRequestIsFromSafaricom
         //  Log the rejection
         Log::warning('Rejected a Daraja request', ['ip' => $request->ip()]);
 
-        return response()->json(['ResultCode' => 'C2B00016', 'ResultDesc' => 'Rejected']);
+        //  Return a failure response
+        return response()->json([
+            'ResultCode' => 'C2B00016',
+            'ResultDesc' => 'Rejected',
+        ]);
     }
 }

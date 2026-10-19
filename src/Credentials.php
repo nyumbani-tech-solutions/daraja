@@ -2,6 +2,8 @@
 
 namespace Nyumbani\Daraja;
 
+use Nyumbani\Daraja\Enums\Environment;
+
 /**
  * The credentials of one paybill or till, which an app builds from its env, config or database.
  *

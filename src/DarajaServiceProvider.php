@@ -13,6 +13,9 @@ class DarajaServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        //  Load helpers
+        $this->loadHelpersFrom(__DIR__.'/Utils');
+
         //  Load the configuration file
         $this->mergeConfigFrom(__DIR__.'/../config/daraja.php', 'daraja');
     }
@@ -28,10 +31,17 @@ class DarajaServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/daraja.php' => config_path('daraja.php'),
         ], 'daraja-config');
+    }
 
-        //  Load the routes when enabled
-        if (config('daraja.routes.enabled')) {
-            $this->loadRoutesFrom(__DIR__.'/../routes/daraja.php');
+    /**
+     * Add any package helpers to the application.
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    protected function loadHelpersFrom(string $path): void
+    {
+        foreach (glob("$path/*.php") as $helper) {
+            require_once $helper;
         }
     }
 }

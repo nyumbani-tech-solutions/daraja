@@ -3,36 +3,10 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Routes
-    |--------------------------------------------------------------------------
-    |
-    | The C2B validation and confirmation, STK push callback and Pull routes
-    | are off until enabled. They need a bound HandlesPayments implementation.
-    |
-    */
-    'routes' => [
-        'enabled' => false,
-        'prefix' => 'safaricom',
-        'middleware' => ['api'],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Broadcast prefix
-    |--------------------------------------------------------------------------
-    |
-    | STK push results are broadcast on "{prefix}.{channel key}".
-    |
-    */
-    'broadcast_prefix' => 'daraja',
-
-    /*
-    |--------------------------------------------------------------------------
     | Safaricom IP addresses
     |--------------------------------------------------------------------------
     |
-    | The addresses allowed to reach the C2B routes, and the environments in
-    | which the check is skipped.
+    | The addresses EnsureRequestIsFromSafaricom lets through.
     |
     */
     'allowed_ips' => [
@@ -50,5 +24,14 @@ return [
         '196.201.212.69',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Skip the IP check in
+    |--------------------------------------------------------------------------
+    |
+    | The environments in which EnsureRequestIsFromSafaricom accepts requests from any
+    | address, since Safaricom cannot reach a local machine.
+    |
+    */
     'skip_ip_check_in' => ['local', 'testing'],
 ];

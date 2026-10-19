@@ -1,6 +1,6 @@
 # nyumbani/daraja
 
-A small Laravel client for Safaricom's Daraja API: STK push, C2B URL registration and Pull transactions, plus the payloads, events, middleware and optional routes to receive them. It requires only Laravel.
+A small Laravel client for Safaricom's Daraja API: STK push, C2B URL registration and Pull transactions, plus the payload parsers, middleware, and response helpers to receive them. It requires only Laravel.
 
 ## Credentials
 
@@ -22,33 +22,23 @@ $credentials = new Credentials(
 ```php
 $daraja = Daraja::for($credentials);
 
-$daraja->stkPush('0712345678', 100, 'INV-1', 'Order payment', channelKey: 'invoice-9');
-$daraja->registerC2BUrls();
-$daraja->registerPullUrl('0712345678');
+$daraja->stkPush('0712345678', 100, 'INV-1', 'Order payment', $callbackUrl);
+$daraja->registerC2BUrls($validationUrl, $confirmationUrl);
+$daraja->registerPullUrl('0712345678', $callbackUrl);
 $daraja->pullTransactions();           // last 48 hours, or pass from and to
 ```
 
-Each call returns a readonly response (`successful`, `message`, `failed()`); `pullTransactions()` also carries a collection of `Payment`s.
+Each call returns Laravel's HTTP client response, so use `successful()`, `failed()` and `json()`. Daraja can answer 200 with a failure code, so also check `ResponseCode` (`0` for an STK push, `1000` for the Pull calls).
 
 ## Receiving payments
 
-Enable the routes in the published config (`php artisan vendor:publish --tag=daraja-config`), then bind your handler:
+Validation, confirmation, Pull and STK push callbacks are your app's routes, so it decides which paybill a request belongs to, how to read the payload and what to do with it. The package only guards them:
 
 ```php
-$this->app->bind(HandlesPayments::class, InvoicePaymentHandler::class);
+Route::post('hooks/{paybill}/confirm', [ConfirmationController::class, 'store'])
+    ->middleware(EnsureRequestIsFromSafaricom::class);
 ```
 
-- `validate(Payment): bool` accepts or rejects a payment before the customer is charged.
-- `confirm(Payment): void` books it. Safaricom can send a confirmation more than once, so make it idempotent on `transactionId`.
+`EnsureRequestIsFromSafaricom` checks `daraja.allowed_ips` (skipped in `daraja.skip_ip_check_in` environments) and answers other addresses with `C2B00016`.
 
-The C2B routes sit behind `EnsureRequestIsFromSafaricom`, which checks `daraja.allowed_ips` (skipped in `daraja.skip_ip_check_in` environments). A `PaymentReceived` event is dispatched after each confirmation.
-
-## STK push results
-
-`stkPush()` sends Safaricom a signed callback url carrying your `channelKey`. When the customer pays or cancels, `StkPushProcessed` is broadcast on `daraja.{channelKey}` (prefix in config) with `status`, `merchantRequestId`, `checkoutRequestId` and `description`. Pass your own `callbackUrl` instead if you do not enable the routes.
-
-Safaricom reports hashed phone numbers on C2B payments. Resolve them with `Daraja::resolveMsisdnUsing(fn (string $reported) => ...)`.
-
-## Testing
-
-`vendor/bin/pest`
+`stkPush()` needs the `callbackUrl` Safaricom posts the result to. `daraja_phone()` normalises a Kenyan number to the `254XXXXXXXXX` format Daraja expects.

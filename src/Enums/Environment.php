@@ -1,6 +1,6 @@
 <?php
 
-namespace Nyumbani\Daraja;
+namespace Nyumbani\Daraja\Enums;
 
 /**
  * The Daraja environment a set of credentials belongs to.
