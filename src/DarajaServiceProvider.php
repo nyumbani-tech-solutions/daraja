@@ -2,9 +2,14 @@
 
 namespace Nyumbani\Daraja;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Nyumbani\Daraja\Docs\DarajaDemos;
+use Nyumbani\Daraja\Docs\ReceivedHookController;
+use Nyumbani\Daraja\Http\Middleware\EnsureRequestIsFromSafaricom;
 use Nyumbani\Essentials\Docs\Docs;
 use Nyumbani\Essentials\Docs\DocsRegistry;
+use Nyumbani\Essentials\Http\Middleware\EnsureDocsAreAvailable;
 
 class DarajaServiceProvider extends ServiceProvider
 {
@@ -54,17 +59,40 @@ class DarajaServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'daraja');
 
         //  Describe the pages
-        $this->app->make(DocsRegistry::class)->register(new Docs('nyumbani-daraja', 'Daraja', [
+        $demos = new DarajaDemos;
+
+        $this->app->make(DocsRegistry::class)->register((new Docs('nyumbani-daraja', 'Daraja', [
             ['title' => 'Getting started', 'pages' => [
                 'introduction' => 'Introduction',
                 'installation' => 'Installation',
                 'configuration' => 'Configuration',
+                'walkthrough' => 'Walkthrough',
             ]],
             ['title' => 'Using Daraja', 'pages' => [
                 'payments' => 'Payments',
                 'webhooks' => 'Webhooks',
             ]],
-        ], 'daraja::docs'));
+        ], 'daraja::docs'))
+            ->demo('phone', $demos->phone(...))
+            ->demo('short-code', $demos->shortCode(...))
+            ->demo('stk-push', $demos->stkPush(...))
+            ->demo('register-c2b', $demos->registerC2b(...))
+            ->demo('register-pull', $demos->registerPull(...))
+            ->demo('pull', $demos->pull(...))
+            ->demo('guard', $demos->guard(...))
+            ->demo('live-token', $demos->liveToken(...))
+            ->demo('live-stk-push', $demos->liveStkPush(...))
+            ->demo('live-register-c2b', $demos->liveRegisterC2b(...))
+            ->demo('live-register-pull', $demos->liveRegisterPull(...))
+            ->demo('live-pull', $demos->livePull(...))
+            ->demo('received', $demos->received(...)));
+
+        //  Receive what Safaricom posts to the live buttons of the docs, which only its addresses may reach
+        Route::post('nyumbani-daraja/docs/samples/hooks/{hook}', ReceivedHookController::class)
+            ->whereIn('hook', ['stk', 'validation', 'confirmation', 'pull'])
+            ->middleware(['web', EnsureDocsAreAvailable::class, EnsureRequestIsFromSafaricom::class])
+            ->withoutMiddleware(['Illuminate\\Foundation\\Http\\Middleware\\PreventRequestForgery', 'Illuminate\\Foundation\\Http\\Middleware\\ValidateCsrfToken'])
+            ->name('daraja.docs.hook');
     }
 
     /**

@@ -58,4 +58,21 @@ return [
     |
     */
     'skip_ip_check_in' => ['local', 'testing'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Docs credentials
+    |--------------------------------------------------------------------------
+    |
+    | The short code the live buttons of the docs call Safaricom with. Only the
+    | docs read these; your app builds its own ShortCode.
+    |
+    */
+    'docs' => [
+        'short_code' => env('DARAJA_SHORT_CODE'),
+        'consumer_key' => env('DARAJA_CONSUMER_KEY'),
+        'consumer_secret' => env('DARAJA_CONSUMER_SECRET'),
+        'pass_key' => env('DARAJA_PASS_KEY'),
+        'till_number' => env('DARAJA_TILL_NUMBER'),
+    ],
 ];
