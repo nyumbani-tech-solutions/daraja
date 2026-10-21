@@ -37,7 +37,7 @@
         <x-essentials::docs.code lang="bash" title="Terminal">
             php artisan vendor:publish --tag=daraja-config
         </x-essentials::docs.code>
-        <p>Only needed to change the allowed addresses or the environments in which the address check is skipped.</p>
+        <p>Only needed to change the allowed addresses or the environments in which the address check is skipped. In an app that uses Nyumbani Essentials, <code>php artisan nyumbani:install</code> publishes it for you.</p>
     </x-essentials::docs.section>
 
     <x-essentials::docs.section id="next" title="Next">
