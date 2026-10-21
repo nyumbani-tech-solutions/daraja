@@ -41,7 +41,9 @@ $daraja->pullTransactions($from, $to, $offset);
 ```
 - `stkPush` needs the short code's pass key (otherwise a `LogicException`) and a public `$callbackUrl`. Phones are normalised with `daraja_phone()`; use it yourself for any stored number.
 - `accessToken()` throws `DarajaException` when Daraja cannot be reached or refuses the credentials. Catch it where the user triggers the call and flash an error toast with `back()->alert('error', ...)`.
-- Pull queries default to the last 48 hours.
+- Pull queries default to the last 48 hours; the times are converted to East Africa Time. `amount` is rounded to whole shillings.
+- The access token is cached for 55 minutes per environment and short code in the default cache store, and a failed token request is never cached.
+- A `ShortCode` with a `tillNumber` makes an STK push a Buy Goods payment to the till; without one it is a PayBill payment.
 
 ## Reading responses
 Each call returns Laravel's HTTP `Response`. Daraja can answer HTTP 200 with a failure, so check both `successful()` and the code in the body: `ResponseCode` is `0` for an STK push and `1000` for the Pull calls.
@@ -50,7 +52,16 @@ if ($response->failed() || ! in_array($response->json('ResponseCode'), ['0', '10
 ```
 
 ## Testing
-Use `Http::fake()` for `sandbox.safaricom.co.ke` and `api.safaricom.co.ke`. Never hit Daraja from the test suite.
+Use `Http::fake()` for `sandbox.safaricom.co.ke` and `api.safaricom.co.ke`, faking the token request (`*/oauth/v1/generate*`) as well as the call. Never hit Daraja from the test suite.
+```php
+use Illuminate\Support\Facades\Http;
+
+Http::fake([
+    '*/oauth/v1/generate*' => Http::response(['access_token' => 'token']),
+    '*/mpesa/stkpush/v1/processrequest' => Http::response(['ResponseCode' => '0', 'CheckoutRequestID' => 'ws_CO_1']),
+]);
+```
+Save the `CheckoutRequestID` of an accepted push with a pending payment: the STK callback carries the same id.
 
 ## Rules
 - Business logic (which order a payment belongs to) lives in the app's own service or action, not in the controller that calls Daraja.

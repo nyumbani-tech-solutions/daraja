@@ -40,6 +40,13 @@ return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
 ```
 Keep the raw payload first (type, payload, IP), then do the slow work in a queued job. Do not make Safaricom wait on business logic.
 
+## How the middleware decides
+It skips the check in `daraja.skip_ip_check_in` environments, lets through an exact match in `daraja.allowed_ips`, and otherwise logs `Rejected a Daraja request` and answers HTTP 200 with `C2B00016`. It checks the sender's address only: Daraja callbacks carry no signature, so still validate the payload. Behind a proxy or load balancer, configure Laravel's trusted proxies, or every request looks like it comes from the proxy and is rejected.
+
+## Payload shapes
+- STK: `Body.stkCallback` with `CheckoutRequestID`, `ResultCode` (`0` paid, `1032` cancelled, `1037` timeout, `2001` wrong PIN) and, on success, `CallbackMetadata.Item` as `Name`/`Value` pairs (`Amount`, `MpesaReceiptNumber`, `PhoneNumber`). Read it with `collect($items)->pluck('Value', 'Name')`.
+- C2B: flat fields `TransID`, `TransAmount`, `BillRefNumber`, `BusinessShortCode`, `MSISDN` (which may arrive masked). Refuse a validation with `C2B00011` to `C2B00016`.
+
 ## Handling
 - Callbacks can arrive more than once. Make the handler idempotent by keying on the transaction id (`TransID`, or the STK `CheckoutRequestID`).
 - Treat the payload as untrusted input: validate and cast amounts and phone numbers before using them, and normalise numbers with `daraja_phone()`.
