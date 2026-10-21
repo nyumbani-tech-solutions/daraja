@@ -7,9 +7,9 @@ use Illuminate\Support\ServiceProvider;
 use Nyumbani\Daraja\Docs\DarajaDemos;
 use Nyumbani\Daraja\Docs\ReceivedHookController;
 use Nyumbani\Daraja\Http\Middleware\EnsureRequestIsFromSafaricom;
-use Nyumbani\Essentials\Docs\Docs;
-use Nyumbani\Essentials\Docs\DocsRegistry;
-use Nyumbani\Essentials\Http\Middleware\EnsureDocsAreAvailable;
+use Nyumbani\Docs\Docs;
+use Nyumbani\Docs\DocsRegistry;
+use Nyumbani\Docs\Http\Middleware\EnsureDocsAreAvailable;
 
 class DarajaServiceProvider extends ServiceProvider
 {
@@ -39,18 +39,18 @@ class DarajaServiceProvider extends ServiceProvider
             __DIR__.'/../config/daraja.php' => config_path('daraja.php'),
         ], 'daraja-config');
 
-        //  Add the docs when Nyumbani Essentials is installed to show them
+        //  Add the docs when Nyumbani Docs is installed to show them
         $this->registerDocs();
     }
 
     /**
-     * Add the Daraja docs to the Nyumbani docs, which Essentials serves
+     * Add the Daraja docs to the Nyumbani docs, which Nyumbani Docs serves
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
      */
     protected function registerDocs(): void
     {
-        //  Skip when Essentials is not installed
+        //  Skip when Nyumbani Docs is not installed
         if (! class_exists(DocsRegistry::class)) {
             return;
         }
