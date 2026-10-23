@@ -39,7 +39,7 @@ class DarajaServiceProvider extends ServiceProvider
             __DIR__.'/../config/daraja.php' => config_path('daraja.php'),
         ], 'daraja-config');
 
-        //  Add the docs when Nyumbani Docs is installed to show them
+        //  Add the docs, which Nyumbani Docs serves
         $this->registerDocs();
     }
 
@@ -50,11 +50,6 @@ class DarajaServiceProvider extends ServiceProvider
      */
     protected function registerDocs(): void
     {
-        //  Skip when Nyumbani Docs is not installed
-        if (! class_exists(DocsRegistry::class)) {
-            return;
-        }
-
         //  Load the views of the pages
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'daraja');
 

@@ -19,13 +19,8 @@
 	"require": {
 		"php": "^8.3",
 		"illuminate/support": "^12.0||^13.0",
-		"illuminate/http": "^12.0||^13.0"
-	},
-	"require-dev": {
-		"nyumbani/docs": "^1.0"
-	},
-	"suggest": {
-		"nyumbani/docs": "Serves the Daraja docs at /nyumbani-daraja/docs in the local environment, in any Laravel app. Nyumbani Essentials requires it."
+		"illuminate/http": "^12.0||^13.0",
+		"nyumbani/docs": "^1.1"
 	},
 	"autoload": {
 		"psr-4": {
