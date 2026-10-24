@@ -39,8 +39,10 @@ class DarajaServiceProvider extends ServiceProvider
             __DIR__.'/../config/daraja.php' => config_path('daraja.php'),
         ], 'daraja-config');
 
-        //  Add the docs, which Nyumbani Docs serves
-        $this->registerDocs();
+        //  Add the docs, which Nyumbani Docs serves, when it is installed
+        if (class_exists(DocsRegistry::class)) {
+            $this->registerDocs();
+        }
     }
 
     /**
