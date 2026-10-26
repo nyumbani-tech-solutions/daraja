@@ -2,6 +2,38 @@
 
 A small Laravel client for Safaricom's Daraja API: STK push, C2B URL registration and Pull transactions, plus the payload parsers, middleware, and response helpers to receive them. It requires only Laravel.
 
+## Requirements
+
+- PHP 8.3 or newer and Laravel 12 or 13
+- A Safaricom Daraja app with a short code, consumer key and secret, and a pass key for STK push
+
+## Install
+
+1. Require it:
+
+```
+composer require nyumbani/daraja
+```
+
+2. Set the environment in `.env`. Credentials normally live wherever your app keeps them (see Short code below); these keys feed the local docs only:
+
+```
+DARAJA_ENVIRONMENT=sandbox
+DARAJA_SHORT_CODE=
+DARAJA_CONSUMER_KEY=
+DARAJA_CONSUMER_SECRET=
+DARAJA_PASS_KEY=
+DARAJA_TILL_NUMBER=
+```
+
+3. Optionally publish the configuration (the Safaricom IP allow-list and the environment switch):
+
+```
+php artisan vendor:publish --tag=daraja-config
+```
+
+4. Call it, and guard the routes Safaricom posts to (see below). In an app with `nyumbani/essentials`, `php artisan nyumbani:install --with=daraja` does steps 1 to 3 for you.
+
 ## Short code
 
 Set the environment, `sandbox` or `production`, in your `.env` (it defaults to `production`):
@@ -57,3 +89,7 @@ Route::post('hooks/{paybill}/confirm', [ConfirmationController::class, 'store'])
 `EnsureRequestIsFromSafaricom` checks `daraja.allowed_ips` (skipped in `daraja.skip_ip_check_in` environments) and answers other addresses with `C2B00016`.
 
 `stkPush()` needs the `callbackUrl` Safaricom posts the result to. `daraja_phone()` normalises a Kenyan number to the `254XXXXXXXXX` format Daraja expects.
+
+## Docs
+
+The package suggests `nyumbani/docs` (`composer require --dev nyumbani/docs`), which then serves the docs locally at `/nyumbani-daraja/docs`, in any Laravel app. The package works without it.
