@@ -24,7 +24,12 @@ DARAJA_CONSUMER_KEY=
 DARAJA_CONSUMER_SECRET=
 DARAJA_PASS_KEY=
 DARAJA_TILL_NUMBER=
+DARAJA_MSISDN_RESOLVER_URL=https://msisdn.nyumbani.ke/api/v1
+DARAJA_MSISDN_RESOLVER_TOKEN=
+DARAJA_MSISDN_RESOLVER_TIMEOUT=5
 ```
+
+The `DARAJA_MSISDN_RESOLVER_*` keys are read by the package itself (see Masked numbers below); the token is a Sanctum bearer token issued to your app.
 
 3. Optionally publish the configuration (the Safaricom IP allow-list and the environment switch):
 
@@ -89,6 +94,18 @@ Route::post('hooks/{paybill}/confirm', [ConfirmationController::class, 'store'])
 `EnsureRequestIsFromSafaricom` checks `daraja.allowed_ips` (skipped in `daraja.skip_ip_check_in` environments) and answers other addresses with `C2B00016`.
 
 `stkPush()` needs the `callbackUrl` Safaricom posts the result to. `daraja_phone()` normalises a Kenyan number to the `254XXXXXXXXX` format Daraja expects.
+
+## Masked numbers
+
+Safaricom's newer C2B registration sends `MSISDN` as a SHA-256 hash instead of the number. `MsisdnResolver` turns it back into the number through the Nyumbani MSISDN resolver:
+
+```php
+use Nyumbani\Daraja\MsisdnResolver;
+
+$phone = MsisdnResolver::resolve($request->input('MSISDN'));
+```
+
+It asks the resolver only for a 64-character hexadecimal value, and returns the value untouched when it is not a hash, when `DARAJA_MSISDN_RESOLVER_URL` or `DARAJA_MSISDN_RESOLVER_TOKEN` is empty, when the resolver cannot be reached or times out, and when the resolver does not know the hash. It therefore never throws, so test the result with `daraja_phone()` or `(new MsisdnResolver)->isHash()` before trusting it as a number.
 
 ## Docs
 

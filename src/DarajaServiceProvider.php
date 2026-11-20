@@ -77,6 +77,7 @@ class DarajaServiceProvider extends ServiceProvider
             ->demo('register-pull', $demos->registerPull(...))
             ->demo('pull', $demos->pull(...))
             ->demo('guard', $demos->guard(...))
+            ->demo('msisdn', $demos->msisdn(...))
             ->demo('live-token', $demos->liveToken(...))
             ->demo('live-stk-push', $demos->liveStkPush(...))
             ->demo('live-register-c2b', $demos->liveRegisterC2b(...))

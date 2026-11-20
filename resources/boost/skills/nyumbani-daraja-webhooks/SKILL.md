@@ -1,6 +1,6 @@
 ---
 name: nyumbani-daraja-webhooks
-description: "Invoke when a Nyumbani app receives Safaricom callbacks: C2B validation and confirmation, STK push results, Pull notifications, protecting those routes, the Safaricom IP allow-list, CSRF exemption, or what to answer Safaricom. Skip for making outgoing Daraja calls."
+description: "Invoke when a Nyumbani app receives Safaricom callbacks: C2B validation and confirmation, STK push results, Pull notifications, protecting those routes, the Safaricom IP allow-list, CSRF exemption, or what to answer Safaricom. Skip for making outgoing Daraja calls, and for hashed or masked MSISDNs (see nyumbani-daraja-msisdn)."
 metadata:
   author: nyumbani
 ---
@@ -45,7 +45,7 @@ It skips the check in `daraja.skip_ip_check_in` environments, lets through an ex
 
 ## Payload shapes
 - STK: `Body.stkCallback` with `CheckoutRequestID`, `ResultCode` (`0` paid, `1032` cancelled, `1037` timeout, `2001` wrong PIN) and, on success, `CallbackMetadata.Item` as `Name`/`Value` pairs (`Amount`, `MpesaReceiptNumber`, `PhoneNumber`). Read it with `collect($items)->pluck('Value', 'Name')`.
-- C2B: flat fields `TransID`, `TransAmount`, `BillRefNumber`, `BusinessShortCode`, `MSISDN` (which may arrive masked). Refuse a validation with `C2B00011` to `C2B00016`.
+- C2B: flat fields `TransID`, `TransAmount`, `BillRefNumber`, `BusinessShortCode`, `MSISDN` (which may arrive as a SHA-256 hash: resolve it with `MsisdnResolver`, see `nyumbani-daraja-msisdn`). Refuse a validation with `C2B00011` to `C2B00016`.
 
 ## Handling
 - Callbacks can arrive more than once. Make the handler idempotent by keying on the transaction id (`TransID`, or the STK `CheckoutRequestID`).

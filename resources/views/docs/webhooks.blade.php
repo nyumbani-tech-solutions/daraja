@@ -244,7 +244,7 @@
             ['TransAmount', 'The amount, as a string. Cast it before you compare it.'],
             ['BillRefNumber', 'The account number the customer typed. Match it to your invoice or tenant.'],
             ['BusinessShortCode', 'Which of your short codes was paid.'],
-            ['MSISDN', 'The payer\'s number. Safaricom\'s newer registration may send it masked, so do not rely on it to identify the payer.'],
+            ['MSISDN', 'The payer\'s number. Safaricom\'s newer registration sends it as a SHA-256 hash, so resolve it first (see Masked numbers).'],
         ]" />
         <p>To <strong>accept</strong> a validation, answer <code>ResultCode</code> <code>0</code>. To <strong>refuse</strong> it, answer one of Safaricom's codes:</p>
         <x-docs::table :columns="['ResultCode', 'Refuses because']" :rows="[
@@ -270,6 +270,36 @@
                     : ['ResultCode' => 'C2B00012', 'ResultDesc' => 'Rejected']);
             }
         </x-docs::code>
+    </x-docs::section>
+
+    <x-docs::section id="msisdn" title="Masked numbers">
+        <p>When your short code is registered with Safaricom's newer C2B version, <code>MSISDN</code> arrives as a SHA-256 hash (64 hexadecimal characters) instead of <code>2547...</code>. <code>MsisdnResolver</code> asks the Nyumbani MSISDN resolver for the number behind it.</p>
+        <x-docs::code title="Resolving the payer">
+            use Illuminate\Http\Request;
+            use Nyumbani\Daraja\MsisdnResolver;
+
+            public function confirmation(Request $request)
+            {
+                //  A number comes back as it was, a known hash comes back as the number
+                $phone = MsisdnResolver::resolve($request->input('MSISDN'));
+            }
+        </x-docs::code>
+        <p>It never throws and it never guesses. The value comes back untouched when:</p>
+        <x-docs::table :columns="['Case', 'Result']" :rows="[
+            ['The value is not 64 hexadecimal characters', 'Returned as it came, with no call.'],
+            ['DARAJA_MSISDN_RESOLVER_URL or DARAJA_MSISDN_RESOLVER_TOKEN is empty', 'Returned as it came, with no call.'],
+            ['The resolver is unreachable or slower than the timeout', 'Returned as it came.'],
+            ['The resolver does not know the hash', 'Returned as it came.'],
+            ['The resolver knows the hash', 'The number it answers with.'],
+        ]" />
+        <p>Because a hash you could not resolve is returned too, check the answer with <code>(new MsisdnResolver)->isHash()</code> before you treat it as a phone number. The request is <code>POST number/resolve</code> with <code>{"hash": "..."}</code> and a bearer token, and the answer carries <code>phone</code>.</p>
+        <x-docs::playground demo="msisdn" title="Resolve a value (resolver faked)" :fields="[
+            ['name' => 'value', 'label' => 'MSISDN as Safaricom sent it', 'value' => '254708374149', 'placeholder' => 'A number or a 64 character hash'],
+            ['name' => 'configured', 'label' => 'Resolver configured', 'type' => 'select', 'value' => 'yes', 'options' => ['yes' => 'Yes', 'no' => 'No, no url or token']],
+        ]" />
+        <x-docs::callout type="tip" title="Needs a token">
+            Ask for a Sanctum token for your app, then set <code>DARAJA_MSISDN_RESOLVER_TOKEN</code>. The url defaults to <code>https://msisdn.nyumbani.ke/api/v1</code>.
+        </x-docs::callout>
     </x-docs::section>
 
     <x-docs::section id="received" title="See what Safaricom sends">

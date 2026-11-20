@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Nyumbani\Daraja\Daraja;
 use Nyumbani\Daraja\Http\Middleware\EnsureRequestIsFromSafaricom;
+use Nyumbani\Daraja\MsisdnResolver;
 use Nyumbani\Daraja\ShortCode;
 use Throwable;
 
@@ -301,6 +302,40 @@ class DarajaDemos
         return [
             $this->row('Reaches your controller', $reached ? 'Yes' : 'No', $reached),
             $this->row('Answer', $reached ? 'Whatever your controller returns' : $response->getContent()),
+        ];
+    }
+
+    /**
+     * Resolve a typed value the way MsisdnResolver does, with the resolver faked so it is never called
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function msisdn(array $input): array
+    {
+        $value = trim($input['value'] ?? '');
+        $isConfigured = ($input['configured'] ?? 'yes') === 'yes';
+
+        //  Fake a resolver that knows every hash, and restore the config afterwards
+        $original = config('daraja.msisdn_resolver');
+        config(['daraja.msisdn_resolver' => [
+            'url' => $isConfigured ? 'https://resolver.test/api/v1' : null,
+            'token' => $isConfigured ? 'docs-token' : null,
+            'timeout' => 5,
+        ]]);
+        Http::fake(['resolver.test/*' => Http::response(['phone' => '254712345678'])]);
+
+        try {
+            $resolver = new MsisdnResolver;
+            $resolved = $resolver->handle($value);
+        } finally {
+            config(['daraja.msisdn_resolver' => $original]);
+        }
+
+        //  Describe what happened to it
+        return [
+            $this->row('Is a SHA-256 hash', $resolver->isHash($value) ? 'Yes' : 'No', $resolver->isHash($value)),
+            $this->row('Resolver called', Http::recorded()->isNotEmpty() ? 'Yes' : 'No'),
+            $this->row('Result', $resolved),
         ];
     }
 

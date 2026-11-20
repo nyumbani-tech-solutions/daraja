@@ -1,7 +1,7 @@
 @extends('docs::layout')
 
 @section('page', 'Configuration')
-@section('lead', 'Four keys, all with working defaults, and credentials that deliberately live elsewhere.')
+@section('lead', 'Five keys, all with working defaults, and credentials that deliberately live elsewhere.')
 
 @section('content')
     <x-docs::section id="options" title="Options">
@@ -9,6 +9,7 @@
         <x-docs::table :columns="['Key', 'Default', 'What it does']" :rows="[
             ['environment', 'production', 'sandbox or production. Set with DARAJA_ENVIRONMENT.'],
             ['base_urls', 'Safaricom sandbox and live', 'The base address of the API for each environment.'],
+            ['msisdn_resolver', 'msisdn.nyumbani.ke, no token, 5 seconds', 'Where MsisdnResolver turns a hashed MSISDN back into a number. Set with DARAJA_MSISDN_RESOLVER_URL, DARAJA_MSISDN_RESOLVER_TOKEN and DARAJA_MSISDN_RESOLVER_TIMEOUT. See Webhooks.'],
             ['allowed_ips', 'Safaricom addresses', 'The addresses EnsureRequestIsFromSafaricom lets through.'],
             ['skip_ip_check_in', 'local, testing', 'Environments where the middleware accepts any address, since Safaricom cannot reach a local machine.'],
         ]" />

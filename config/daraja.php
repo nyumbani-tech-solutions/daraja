@@ -27,6 +27,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | MSISDN resolver
+    |--------------------------------------------------------------------------
+    |
+    | The MSISDN resolver MsisdnResolver asks to turn the hash Safaricom
+    | sends in place of a number back into the number. The url is its API root
+    | (https://msisdn.nyumbani.ke/api/v1), the token a Sanctum bearer token
+    | issued to your app, and the timeout is in seconds. Without a url or a
+    | token the resolver is never called and a hash is returned as it came.
+    |
+    */
+    'msisdn_resolver' => [
+        'url' => env('DARAJA_MSISDN_RESOLVER_URL', 'https://msisdn.nyumbani.ke/api/v1'),
+        'token' => env('DARAJA_MSISDN_RESOLVER_TOKEN'),
+        'timeout' => env('DARAJA_MSISDN_RESOLVER_TIMEOUT', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Safaricom IP addresses
     |--------------------------------------------------------------------------
     |
