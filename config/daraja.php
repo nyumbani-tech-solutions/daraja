@@ -72,7 +72,10 @@ return [
     | How long an attempt is remembered, in minutes, how long the screen waits
     | for the payer to answer the prompt before it shows how to pay by hand,
     | in seconds, and the least seconds between two "I've paid" checks of one
-    | attempt. With simulate on, a push
+    | attempt. The screen follows the payment over a websocket, or by polling
+    | when mode is poll (null picks the websocket when Reverb is set up, else
+    | polling): poll_interval is the seconds between two polls and poll_duration
+    | the seconds it keeps polling for before it stops. With simulate on, a push
     | is never sent to Safaricom and Daraja's answer is made up, so the
     | callbacks must be posted by hand, or by the simulator routes the package
     | then registers (daraja.simulate.stk and daraja.simulate.confirmation),
@@ -81,12 +84,15 @@ return [
     */
     'stk' => [
         'ttl' => env('DARAJA_STK_TTL', 60),
-        'timeout' => env('DARAJA_STK_TIMEOUT', 120),
+        'timeout' => env('DARAJA_STK_TIMEOUT', 60),
         'check_throttle' => env('DARAJA_STK_CHECK_THROTTLE', 10),
+        'mode' => env('DARAJA_STK_MODE', 'websocket'),
+        'poll_interval' => env('DARAJA_STK_POLL_INTERVAL', 3),
+        'poll_duration' => env('DARAJA_STK_POLL_DURATION', 300),
         'simulate' => env('DARAJA_STK_SIMULATE', false),
         'hooks' => [
             'stk' => 'hooks.daraja.stk',
-            'confirmation' => 'hooks.daraja.confirmation'
+            'confirmation' => 'hooks.daraja.confirmation',
         ],
     ],
 

@@ -5,7 +5,7 @@
 
 @section('content')
     <x-docs::section id="overview" title="The flow">
-        <p>An STK push is a prompt on the payer's phone. Safaricom answers it twice, and neither answer alone proves the money arrived, so the standard flow follows both. <code>StkPushManager</code> runs it on the server and <code>&lt;x-nyumbani::payment-prompt&gt;</code> shows it, over a websocket. It supports a <strong>paybill only</strong>.</p>
+        <p>An STK push is a prompt on the payer's phone. Safaricom answers it twice, and neither answer alone proves the money arrived, so the standard flow follows both. <code>StkPushManager</code> runs it on the server and <code>&lt;x-nyumbani::payment-prompt&gt;</code> shows it, over a websocket or by polling. It supports a <strong>paybill only</strong>.</p>
         <x-docs::steps :steps="[
             ['title' => 'Your app starts the push', 'actor' => '$stkPush->initiate()', 'detail' => 'The payer submits your form, however you built it: a plain request, Livewire or ajax. initiate() keeps an attempt in the cache, makes its id, sends the push and answers with the contract: the channel, the status and how to pay by hand.'],
             ['title' => 'You show the payment prompt', 'actor' => 'The payment prompt', 'detail' => 'Once the push is sent, you put the prompt on the page with the contract. It subscribes to the public channel stk.{id} and asks your check route where the attempt stands, in case a status changed before the subscription held.'],
@@ -22,7 +22,7 @@
     <x-docs::section id="needs" title="What it needs">
         <x-docs::table :columns="['Piece', 'Why']" :rows="[
             ['A paybill ShortCode with a pass key', 'The push is signed with it. A short code with a till number is refused, because the manual instructions only work for a paybill.'],
-            ['Reverb and a queue worker', 'The status is broadcast on a queued event. See the Payment prompt page of the UI docs.'],
+            ['Reverb and a queue worker, or polling', 'The status is broadcast on a queued event. Without Reverb the prompt polls your check route instead (mode="poll"), which needs neither. See the Payment prompt page of the UI docs.'],
             ['A public https address for the callbacks', 'Safaricom cannot reach a local machine, so use a tunnel locally, or simulate the pushes (see Develop without Safaricom).'],
             ['A cache', 'Attempts live in your default cache store for daraja.stk.ttl minutes. They hold no credentials.'],
         ]" />
@@ -215,7 +215,7 @@
     </x-docs::section>
 
     <x-docs::section id="screen" title="The screen">
-        <p>The payment prompt lives in <code>nyumbani/ui</code>, which shares nothing with this package but the contract above. It never starts a push: your app does, and puts the prompt on the page with the contract that <code>$stkPush->contract()</code> returned. The prompt subscribes to the broadcast, asks your check route where the attempt stands, times out on its own if the websocket is silent, and shows the manual instructions after every failure. See the <a href="{{ route('docs.page', ['package' => 'nyumbani-ui', 'page' => 'payment-prompt']) }}" class="text-primary underline">Payment prompt</a> page.</p>
+        <p>The payment prompt lives in <code>nyumbani/ui</code>, which shares nothing with this package but the contract above. It never starts a push: your app does, and puts the prompt on the page with the contract that <code>$stkPush->contract()</code> returned. The prompt subscribes to the broadcast (or, in poll mode, asks your check route every few seconds), asks your check route where the attempt stands, times out on its own if the websocket is silent, and shows the manual instructions after every failure. See the <a href="{{ route('docs.page', ['package' => 'nyumbani-ui', 'page' => 'payment-prompt']) }}" class="text-primary underline">Payment prompt</a> page.</p>
         <x-docs::code lang="blade" title="resources/views/invoices/paying.blade.php">
             @verbatim
             <x-nyumbani::payment-prompt
@@ -232,6 +232,9 @@
             ['stk.ttl', '60 minutes', 'How long an attempt is remembered. Set with DARAJA_STK_TTL.'],
             ['stk.timeout', '120 seconds', 'How long the payment prompt waits for the payer to answer before it shows how to pay by hand. It travels to the screen in the contract. Set with DARAJA_STK_TIMEOUT.'],
             ['stk.check_throttle', '10 seconds', 'The least time between two I have paid checks of one attempt. Set with DARAJA_STK_CHECK_THROTTLE.'],
+            ['stk.mode', 'unset', 'How the payment prompt follows the payment: websocket (Reverb) or poll (asks the check route). Unset picks the websocket when Reverb is set up, else polling. Set with DARAJA_STK_MODE.'],
+            ['stk.poll_interval', '3 seconds', 'The seconds between two polls. Set with DARAJA_STK_POLL_INTERVAL.'],
+            ['stk.poll_duration', '300 seconds', 'How long the prompt keeps polling before it stops. Set with DARAJA_STK_POLL_DURATION.'],
             ['stk.hooks', 'hooks.daraja.stk, hooks.daraja.confirmation', 'The route names of your own hooks, which the simulator posts to.'],
             ['stk.simulate', 'off', 'When on, Daraja::stkPush() (which initiate() calls) sends nothing to Safaricom and makes up the answer. See Develop without Safaricom. It throws in production. Set with DARAJA_STK_SIMULATE.'],
         ]" />

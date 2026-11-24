@@ -222,7 +222,7 @@ class StkPushManager
     }
 
     /**
-     * Describe an attempt for the UI: where to listen, where it stands, the number prompted, how long to wait for the payer and how to pay by hand
+     * Describe an attempt for the UI: where to listen, where it stands, the number prompted, how long to wait for the payer, how to follow the payment (websocket or polling) and how to pay by hand
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
      */
@@ -235,6 +235,9 @@ class StkPushManager
             'reason' => $attempt['reason'],
             'phone' => $attempt['phone'],
             'timeout' => (int) config('daraja.stk.timeout', 120),
+            'mode' => config('daraja.stk.mode'),
+            'interval' => (int) config('daraja.stk.poll_interval', 3),
+            'duration' => (int) config('daraja.stk.poll_duration', 300),
             'manual' => [
                 'paybill' => $attempt['shortCode'],
                 'account' => $attempt['reference'],

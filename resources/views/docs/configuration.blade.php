@@ -9,7 +9,7 @@
         <x-docs::table :columns="['Key', 'Default', 'What it does']" :rows="[
             ['base_url', 'https://api.safaricom.co.ke', 'The base address of the API. Only production is supported.'],
             ['msisdn_resolver', 'msisdn.nyumbani.ke, no token, 5 seconds', 'Where MsisdnResolver turns a hashed MSISDN back into a number. Set with DARAJA_MSISDN_RESOLVER_URL, DARAJA_MSISDN_RESOLVER_TOKEN and DARAJA_MSISDN_RESOLVER_TIMEOUT. See Webhooks.'],
-            ['stk', '60 minutes, 120 seconds, 10 seconds, off', 'How long an STK push attempt is remembered, how long the screen waits for the payer to answer, the least seconds between two I have paid checks, and whether pushes are simulated instead of sent (refused in production). Set with DARAJA_STK_TTL, DARAJA_STK_TIMEOUT, DARAJA_STK_CHECK_THROTTLE and DARAJA_STK_SIMULATE. See Payments.'],
+            ['stk', '60 minutes, 120 seconds, 10 seconds, auto, 3 seconds, 300 seconds, off', 'How long an STK push attempt is remembered, how long the screen waits for the payer to answer, the least seconds between two I have paid checks, how the screen follows the payment (websocket or poll), the seconds between polls and how long it polls, and whether pushes are simulated instead of sent (refused in production). Set with DARAJA_STK_TTL, DARAJA_STK_TIMEOUT, DARAJA_STK_CHECK_THROTTLE, DARAJA_STK_MODE, DARAJA_STK_POLL_INTERVAL, DARAJA_STK_POLL_DURATION and DARAJA_STK_SIMULATE. See Payments.'],
             ['allowed_ips', 'Safaricom addresses', 'The addresses EnsureRequestIsFromSafaricom lets through.'],
             ['skip_ip_check_in', 'local, testing', 'Environments where the middleware accepts any address, since Safaricom cannot reach a local machine.'],
         ]" />
