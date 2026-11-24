@@ -77,13 +77,13 @@ return [
     | polling): poll_interval is the seconds between two polls and poll_duration
     | the seconds it keeps polling for before it stops. With simulate on, a push
     | is never sent to Safaricom and Daraja's answer is made up, so the
-    | callbacks must be posted by hand, or by the simulator routes the package
-    | then registers (daraja.simulate.stk and daraja.simulate.confirmation),
-    | which post to the hooks named below. It is refused in production.
+    | callbacks must be posted by hand, or by the simulator in the Daraja docs,
+    | which posts to the hooks named below and needs no flag. Simulate is
+    | refused in production.
     |
     */
     'stk' => [
-        'ttl' => env('DARAJA_STK_TTL', 60),
+        'ttl' => env('DARAJA_STK_TTL', 10),
         'timeout' => env('DARAJA_STK_TIMEOUT', 60),
         'check_throttle' => env('DARAJA_STK_CHECK_THROTTLE', 10),
         'mode' => env('DARAJA_STK_MODE', 'websocket'),

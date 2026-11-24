@@ -100,7 +100,7 @@
 
     <x-docs::section id="try" title="5. Try it without Safaricom">
         <ol>
-            <li>Set <code>DARAJA_STK_SIMULATE=true</code> and press the button. No phone rings; answer with the simulator buttons, which post to <code>hooks/daraja/stk</code> for you.</li>
+            <li>Set <code>DARAJA_STK_SIMULATE=true</code> and press the button. No phone rings; answer with the simulator on the STK push page of these docs, which posts to <code>hooks/daraja/stk</code> for you.</li>
             <li>Watch the <code>payments</code> row move from <code>pending</code> to <code>paid</code> and the receipt number appear.</li>
         </ol>
     </x-docs::section>

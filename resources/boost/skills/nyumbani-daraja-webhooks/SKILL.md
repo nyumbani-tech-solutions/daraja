@@ -58,7 +58,7 @@ Inside the STK route call `$stkPush->handleCallback($request->all())`; it moves 
 - Validation hooks decide whether a payment is accepted. Reject with a non-zero `ResultCode` only when the account reference is unknown.
 
 ## Local development
-Safaricom cannot reach a local machine. Either set `DARAJA_STK_SIMULATE=true` (no push is sent, and the `<x-nyumbani::stk-simulator>` buttons post the two payloads to your own routes), or expose the app through a tunnel, register the tunnel URLs with `registerC2BUrls()` or `registerPullUrl()` in the sandbox, and test handlers with `$this->postJson('/hooks/daraja/confirmation', $payload)`, which passes the guard in `testing`.
+Safaricom cannot reach a local machine. Either use the simulator panel in the Daraja docs (STK push page, local only), which posts the two payloads to your own hooks, or expose the app through a tunnel, register the tunnel URLs with `registerC2BUrls()` or `registerPullUrl()` in the sandbox, and test handlers with `$this->postJson('/hooks/daraja/confirmation', $payload)`, which passes the guard in `testing`.
 
 ## Testing
 Test the guard in a non-skipped environment by setting `daraja.skip_ip_check_in` to `[]`: an unknown IP gets `C2B00016`, an allowed IP reaches the controller.

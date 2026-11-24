@@ -8,12 +8,13 @@
         <p>An STK push is a prompt on the payer's phone. Safaricom answers it twice, and neither answer alone proves the money arrived, so the standard flow follows both. <code>StkPushManager</code> runs it on the server and <code>&lt;x-nyumbani::payment-prompt&gt;</code> shows it, over a websocket or by polling. It supports a <strong>paybill only</strong>.</p>
         <x-docs::steps :steps="[
             ['title' => 'Your app starts the push', 'actor' => '$stkPush->initiate()', 'detail' => 'The payer submits your form, however you built it: a plain request, Livewire or ajax. initiate() keeps an attempt in the cache, makes its id, sends the push and answers with the contract: the channel, the status and how to pay by hand.'],
-            ['title' => 'You show the payment prompt', 'actor' => 'The payment prompt', 'detail' => 'Once the push is sent, you put the prompt on the page with the contract. It subscribes to the public channel stk.{id} and asks your check route where the attempt stands, in case a status changed before the subscription held.'],
+            ['title' => 'You show the payment prompt', 'actor' => 'The payment prompt', 'detail' => 'Once the push is sent, you put the prompt on the page with the contract. It follows the attempt over the public channel stk.{id}, or by asking your check route every few seconds when you chose polling, so a status that changed before the page loaded is not missed.'],
             ['title' => 'The payer answers on their phone', 'actor' => 'Safaricom', 'detail' => 'They enter the PIN, cancel, lack funds, or ignore the prompt.'],
             ['title' => 'Safaricom posts the STK result', 'actor' => 'Your STK route, $stkPush->handleCallback()', 'detail' => 'A paid push becomes paid and the screen says Payment received, confirming. Anything else becomes failed with a reason and the screen shows how to pay by hand.'],
             ['title' => 'Safaricom posts the C2B confirmation', 'actor' => 'Your C2B route, $stkPush->confirmPayment()', 'detail' => 'This is the real proof of payment. You record the payment first. Then the call matches the attempt by receipt or reference, marks it confirmed and tells the screen.'],
             ['title' => 'The screen shows success', 'actor' => 'The payment prompt', 'detail' => 'The browser hears the confirmed status and shows the success message, then moves on.'],
         ]" />
+        <p>Do not have a phone or a tunnel to hand? <a href="#simulate" class="text-primary underline">Simulate a payment</a> answers for Safaricom from this page, so you can run the whole flow on your own machine.</p>
         <x-docs::callout type="warning" title="Fulfil from the C2B payment only">
             The STK result only says the payer completed the prompt. Mark an order paid from the C2B payment you record in your confirmation route, which is the proof the money arrived. The package fires no event for it: <code>confirmPayment()</code> only updates the attempt and the screen.
         </x-docs::callout>
@@ -23,7 +24,7 @@
         <x-docs::table :columns="['Piece', 'Why']" :rows="[
             ['A paybill ShortCode with a pass key', 'The push is signed with it. A short code with a till number is refused, because the manual instructions only work for a paybill.'],
             ['Reverb and a queue worker, or polling', 'The status is broadcast on a queued event. Without Reverb the prompt polls your check route instead (mode="poll"), which needs neither. See the Payment prompt page of the UI docs.'],
-            ['A public https address for the callbacks', 'Safaricom cannot reach a local machine, so use a tunnel locally, or simulate the pushes (see Develop without Safaricom).'],
+            ['A public https address for the callbacks', 'Safaricom cannot reach a local machine, so use a tunnel locally, or simulate the payment (see Simulate a payment).'],
             ['A cache', 'Attempts live in your default cache store for daraja.stk.ttl minutes. They hold no credentials.'],
         ]" />
     </x-docs::section>
@@ -74,9 +75,19 @@
                 "reason": null,
                 "phone": "254712345678",
                 "timeout": 120,
+                "mode": null,
+                "interval": 3,
+                "duration": 300,
                 "manual": { "paybill": "174379", "account": "INV-1", "amount": 150 }
             }
         </x-docs::code>
+        <x-docs::table :columns="['Contract field', 'What the screen does with it']" :rows="[
+            ['id, channel', 'The attempt, and the public channel it broadcasts on.'],
+            ['status, reason, phone', 'Where the attempt stands, why it failed, and the number that was prompted.'],
+            ['timeout', 'Seconds the screen waits for the payer to answer before it shows how to pay by hand (stk.timeout).'],
+            ['mode, interval, duration', 'How the screen follows the payment: websocket or poll (unset picks by what is set up), the seconds between polls, and how long it polls (stk.mode, stk.poll_interval, stk.poll_duration).'],
+            ['manual', 'The paybill, account and amount the payer types in by hand.'],
+        ]" />
         <p>When Daraja refuses the push or cannot be reached, <code>initiate()</code> does not throw. The attempt comes back <code>failed</code> with the reason <code>rejected</code>, so the screen goes straight to the manual instructions.</p>
     </x-docs::section>
 
@@ -104,8 +115,21 @@
         </x-docs::callout>
     </x-docs::section>
 
+    <x-docs::section id="screen" title="The screen">
+        <p>The payment prompt lives in <code>nyumbani/ui</code>, which shares nothing with this package but the contract above. It never starts a push: your app does, and puts the prompt on the page with the contract that <code>$stkPush->contract()</code> returned. The prompt follows the attempt over the websocket broadcast, or by polling your check route (<code>stk.mode</code>, see Settings), times out on its own when no result arrives, and shows the manual instructions after every failure. See the <a href="{{ route('docs.page', ['package' => 'nyumbani-ui', 'page' => 'payment-prompt']) }}" class="text-primary underline">Payment prompt</a> page.</p>
+        <x-docs::code lang="blade" title="resources/views/invoices/paying.blade.php">
+            @verbatim
+            <x-nyumbani::payment-prompt
+                :attempt="$attempt"
+                :check-url="route('invoices.pay.check', ['invoice' => $invoice])"
+                :redirect="route('invoices.show', ['invoice' => $invoice])"
+            />
+            @endverbatim
+        </x-docs::code>
+    </x-docs::section>
+
     <x-docs::section id="callbacks" title="The two callbacks">
-        <p>You keep both routes, as <a href="{{ $docs->url('webhooks') }}" class="text-primary underline">Webhooks</a> describes. Each makes one call to <code>StkPushManager</code>, which you inject. There is no facade.</p>
+        <p>Name both routes: <code>stk.hooks</code> holds the names (<code>hooks.daraja.stk</code> and <code>hooks.daraja.confirmation</code> by default), and the simulator finds your routes by them. You keep both routes, as <a href="{{ $docs->url('webhooks') }}" class="text-primary underline">Webhooks</a> describes. Each makes one call to <code>StkPushManager</code>, which you inject. There is no facade.</p>
         <x-docs::code title="The STK route and the C2B confirmation route">
             use App\Models\Payment;
             use Illuminate\Http\JsonResponse;
@@ -214,61 +238,52 @@
         </x-docs::code>
     </x-docs::section>
 
-    <x-docs::section id="screen" title="The screen">
-        <p>The payment prompt lives in <code>nyumbani/ui</code>, which shares nothing with this package but the contract above. It never starts a push: your app does, and puts the prompt on the page with the contract that <code>$stkPush->contract()</code> returned. The prompt subscribes to the broadcast (or, in poll mode, asks your check route every few seconds), asks your check route where the attempt stands, times out on its own if the websocket is silent, and shows the manual instructions after every failure. See the <a href="{{ route('docs.page', ['package' => 'nyumbani-ui', 'page' => 'payment-prompt']) }}" class="text-primary underline">Payment prompt</a> page.</p>
-        <x-docs::code lang="blade" title="resources/views/invoices/paying.blade.php">
-            @verbatim
-            <x-nyumbani::payment-prompt
-                :attempt="$attempt"
-                :check-url="route('invoices.pay.check', ['invoice' => $invoice])"
-                :redirect="route('invoices.show', ['invoice' => $invoice])"
-            />
-            @endverbatim
-        </x-docs::code>
-    </x-docs::section>
+    <x-docs::section id="simulate" title="Simulate a payment">
+        <p>Safaricom cannot reach a local machine, and a real push rings a real phone. This page lets you play Safaricom: start a payment in your own app, then answer for it here by pressing the buttons. Each one makes the server post a Safaricom-shaped payload to <strong>your</strong> hooks, so your real routes, middleware and handlers run, and only Safaricom is missing. The panel prints the url it posted to, the status your hook answered, the payload sent and the attempt as it stands now. If the status is not 200, the fault is in your hook, not in the package.</p>
+        <p>The simulator lives in these docs, which answer 404 anywhere but a developer's machine, so it needs no setting and can never run in production. It never calls Safaricom either. It answers for the payments your app started in the last hour, fake or real: set <code>DARAJA_STK_SIMULATE=true</code> to start one without a real push, or start a real one and answer it here, since Safaricom cannot reach a local machine anyway. It needs a cache that persists between requests, so not the <code>array</code> store.</p>
 
-    <x-docs::section id="config" title="Settings">
-        <x-docs::table :columns="['Key', 'Default', 'What it does']" :rows="[
-            ['stk.ttl', '60 minutes', 'How long an attempt is remembered. Set with DARAJA_STK_TTL.'],
-            ['stk.timeout', '120 seconds', 'How long the payment prompt waits for the payer to answer before it shows how to pay by hand. It travels to the screen in the contract. Set with DARAJA_STK_TIMEOUT.'],
-            ['stk.check_throttle', '10 seconds', 'The least time between two I have paid checks of one attempt. Set with DARAJA_STK_CHECK_THROTTLE.'],
-            ['stk.mode', 'unset', 'How the payment prompt follows the payment: websocket (Reverb) or poll (asks the check route). Unset picks the websocket when Reverb is set up, else polling. Set with DARAJA_STK_MODE.'],
-            ['stk.poll_interval', '3 seconds', 'The seconds between two polls. Set with DARAJA_STK_POLL_INTERVAL.'],
-            ['stk.poll_duration', '300 seconds', 'How long the prompt keeps polling before it stops. Set with DARAJA_STK_POLL_DURATION.'],
-            ['stk.hooks', 'hooks.daraja.stk, hooks.daraja.confirmation', 'The route names of your own hooks, which the simulator posts to.'],
-            ['stk.simulate', 'off', 'When on, Daraja::stkPush() (which initiate() calls) sends nothing to Safaricom and makes up the answer. See Develop without Safaricom. It throws in production. Set with DARAJA_STK_SIMULATE.'],
-        ]" />
-    </x-docs::section>
-
-    <x-docs::section id="simulate" title="Develop without Safaricom">
-        <p>Safaricom cannot reach a local machine, and a real push rings a real phone. Set <code>DARAJA_STK_SIMULATE=true</code> and <code>Daraja::stkPush()</code> sends nothing: it makes up the answer of an accepted push, with its own <code>CheckoutRequestID</code> and <code>MerchantRequestID</code>, and writes a line to the log. <code>initiate()</code> then works as usual, so the attempt is <code>pending</code>, the prompt follows it, and the only thing missing is Safaricom. You play Safaricom by posting its two payloads to your own routes.</p>
-        <p>The package ships the buttons that answer for Safaricom, so you never write them. They post to <strong>your</strong> hooks, which is the point: the real route, middleware and handler run, only Safaricom is missing.</p>
+        <div class="my-4 rounded border border-gray-200 p-4">
+            <x-daraja::stk-simulator />
+        </div>
 
         <x-docs::steps :steps="[
             ['title' => 'Declare your hooks', 'actor' => 'Your app', 'detail' => 'The STK and the C2B confirmation routes are yours, as the Webhooks page shows. The simulator never registers them: it only needs their names.'],
-            ['title' => 'Turn simulation on', 'actor' => 'Your .env', 'detail' => 'Set DARAJA_STK_SIMULATE=true. The simulator routes answer 404 otherwise, and are not registered in production.'],
-            ['title' => 'Start a push', 'actor' => 'Your app', 'detail' => 'Call initiate() as usual. No phone rings and the attempt is pending, with a made-up CheckoutRequestID.'],
-            ['title' => 'Put the panel on the page', 'actor' => 'Your view', 'detail' => 'Add the stk-simulator component beside the payment prompt, with the same contract.'],
-            ['title' => 'Press a button', 'actor' => 'The package', 'detail' => 'The server posts the payload to your hook. The prompt moves on through the same broadcast a real payment would send.'],
+            ['title' => 'Start a payment', 'actor' => 'Your app', 'detail' => 'Call initiate() as usual, with DARAJA_STK_SIMULATE=true so no phone rings, or for real. The attempt is pending, and the payment prompt follows it.'],
+            ['title' => 'Pick it here', 'actor' => 'This page', 'detail' => 'Choose the payment in the list above, newest first, and press Refresh when you start another.'],
+            ['title' => 'Answer the push', 'actor' => 'The package', 'detail' => 'Press Paid, Cancelled, No funds, Wrong PIN or Timeout. The server posts that STK result to your STK hook.'],
+            ['title' => 'Confirm the payment', 'actor' => 'The package', 'detail' => 'Press a C2B button. The server posts the confirmation to your C2B hook, the real proof of payment.'],
         ]" />
 
-        <x-docs::code title="The panel, beside the prompt">
-            @verbatim
-            <x-nyumbani::payment-prompt :$attempt :check-url="route('payments.check')" />
-
-            {{--  Renders nothing unless DARAJA_STK_SIMULATE is on, so it can stay in the view  --}}
-            <x-nyumbani::stk-simulator :$attempt />
-            @endverbatim
-        </x-docs::code>
-
         <x-docs::table :columns="['Button', 'What is posted to your hook', 'You should see']" :rows="[
-            ['Paid', 'The STK hook: ResultCode 0 with a new receipt.', 'The prompt shows payment received, then confirmed once the C2B arrives.'],
-            ['Cancelled, No funds, Wrong PIN, Timeout', 'The STK hook: ResultCode 1032, 1, 2001 or 1037.', 'The failure screen with the pay-by-hand card.'],
+            ['Paid', 'The STK hook: ResultCode 0 with a new receipt.', 'The attempt is paid, then confirmed once the C2B arrives.'],
+            ['Cancelled, No funds, Wrong PIN, Timeout', 'The STK hook: ResultCode 1032, 1, 2001 or 1037.', 'The attempt failed, with that reason.'],
             ['For the STK payment', 'The C2B hook: TransID equal to the receipt of the paid push. Press Paid first.', 'The attempt confirmed, via stk.'],
             ['Paid by hand', 'The C2B hook: a new TransID and the reference as BillRefNumber.', 'The attempt confirmed, via manual.'],
             ['Paid by hand, KES 1 short', 'The C2B hook with an amount below the attempt.', 'Nothing confirmed.'],
         ]" />
-        <p>Under the buttons the panel prints the url it posted to, the status your hook answered, the payload it sent, and the attempt as it stands now. If the status is not 200, the fault is in your hook, not in the package.</p>
+
+        <h3>Before you press a button</h3>
+        <x-docs::table :columns="['It needs', 'Because']" :rows="[
+            ['Your two hooks, named as stk.hooks says', 'The simulator posts to them by route name, so they must exist. Without them the panel says your hooks are not registered.'],
+            ['The local environment', 'These docs, and so the simulator, answer 404 anywhere else. The Safaricom address guard on your hooks is skipped in the environments listed in daraja.skip_ip_check_in (local and testing by default), so the posts get through.'],
+            ['A server that handles two requests at once', 'The panel makes your app call its own hook while it is answering the panel. Herd, Valet and php-fpm do; php artisan serve with one worker deadlocks.'],
+            ['A cache that persists', 'The list is read from the cache, and the hook reads the attempt from it. The array store forgets between requests.'],
+            ['Reverb and a queue worker, or polling', 'Only if you also want the prompt in your app to move on while you press the buttons. The simulator itself needs neither.'],
+        ]" />
+
+        <h3>When it does not work</h3>
+        <x-docs::table :columns="['You see', 'Because', 'Do']" :rows="[
+            ['No payments in the list', 'Nothing was started in the last hour, or the cache is the array store, or the app and the docs use another cache.', 'Start a payment in your app, set CACHE_STORE to file, database or redis, and press Refresh.'],
+            ['Your hooks are not registered', 'A route named in stk.hooks does not exist.', 'Name your routes, or change stk.hooks to the names you used.'],
+            ['The hook answered 403', 'The Safaricom address guard is on for this environment.', 'Add the environment to daraja.skip_ip_check_in on a development machine only. Do not weaken the guard elsewhere.'],
+            ['The hook answered 404, or 500', 'The url points at another host, or your handler threw.', 'Check APP_URL and read your log: the fault is in your hook, not in the package.'],
+            ['The panel hangs, then fails', 'The server cannot answer two requests at once.', 'Serve the app with Herd or php-fpm.'],
+            ['For the STK payment is refused', 'The push is not paid yet, so there is no receipt to confirm.', 'Press Paid first.'],
+            ['Paid by hand, KES 1 short confirms nothing', 'That is the point: a payment below the amount is never confirmed.', 'Press Paid by hand to confirm.'],
+        ]" />
+
+        <h3>The prompt in your own app</h3>
+        <p><code>DARAJA_STK_SIMULATE=true</code> is a separate thing: it makes <code>Daraja::stkPush()</code> send nothing and answer with an accepted push (its own <code>CheckoutRequestID</code> and <code>MerchantRequestID</code>), so <code>initiate()</code> works as usual, the attempt is <code>pending</code> and the payment prompt follows it with no phone ringing. Answer it from this page, or post the payloads yourself. The flag throws in production and has no effect on the simulator above.</p>
 
         <h3>If your hooks are named differently</h3>
         <p>The simulator finds your hooks by route name, from <code>daraja.stk.hooks</code>. The defaults are <code>hooks.daraja.stk</code> and <code>hooks.daraja.confirmation</code>, the names the Webhooks page uses. If you named yours otherwise, publish the config and change them; a name that is not registered fails with Route not defined.</p>
@@ -279,8 +294,8 @@
             ],
         </x-docs::code>
 
-        <h3>Without nyumbani/ui, or from your own code</h3>
-        <p>The buttons post <code>{ id, outcome }</code> as JSON to <code>daraja.simulate.stk</code> (outcomes <code>paid</code>, <code>cancelled</code>, <code>insufficient-funds</code>, <code>wrong-pin</code>, <code>timeout</code>) or <code>daraja.simulate.confirmation</code> (<code>stk</code>, <code>manual</code>, <code>short</code>), with the session and CSRF token. Both answer 422 for an attempt nobody knows. The class behind them is injectable.</p>
+        <h3>From your own code</h3>
+        <p>The panel lists payments from <code>daraja.simulate.recent</code> and posts to <code>daraja.simulate.stk</code> (outcomes <code>paid</code>, <code>cancelled</code>, <code>insufficient-funds</code>, <code>wrong-pin</code>, <code>timeout</code>) and <code>daraja.simulate.confirmation</code> (<code>stk</code>, <code>manual</code>, <code>short</code>), which exist only in the docs. The class behind them is injectable anywhere outside production, in a test for instance.</p>
         <x-docs::code title="Answer as Safaricom from code">
             use Nyumbani\Daraja\Enums\ConfirmationKind;
             use Nyumbani\Daraja\Enums\StkPushOutcome;
@@ -296,8 +311,8 @@
             }
         </x-docs::code>
 
-        <x-docs::callout type="warning" title="Never on in production">
-            In production, a push that simulates would never prompt a payer, so <code>Daraja::stkPush()</code> throws a <code>LogicException</code> when the flag is on, the simulator routes are not registered, they answer 404 if reached, <code>StkPushSimulator</code> throws, and the simulator panel renders nothing. Pin it to <code>false</code> in <code>phpunit.xml</code> so a developer's <code>.env</code> never changes a test.
+        <x-docs::callout type="warning" title="Never in production">
+            <code>StkPushSimulator</code> throws in production, and the simulator routes and the panel exist only in the docs, which answer 404 outside the local environment. <code>DARAJA_STK_SIMULATE</code> makes <code>Daraja::stkPush()</code> throw there too. Pin it to <code>false</code> in <code>phpunit.xml</code> so a developer's <code>.env</code> never changes a test.
         </x-docs::callout>
     </x-docs::section>
 
@@ -320,5 +335,18 @@
                 expect($attempt)->status->toBe('confirmed');
             });
         </x-docs::code>
+    </x-docs::section>
+
+    <x-docs::section id="config" title="Settings">
+        <x-docs::table :columns="['Key', 'Default', 'What it does']" :rows="[
+            ['stk.ttl', '60 minutes', 'How long an attempt is remembered. Set with DARAJA_STK_TTL.'],
+            ['stk.timeout', '120 seconds', 'How long the payment prompt waits for the payer to answer before it shows how to pay by hand. It travels to the screen in the contract. Set with DARAJA_STK_TIMEOUT.'],
+            ['stk.check_throttle', '10 seconds', 'The least time between two I have paid checks of one attempt. Set with DARAJA_STK_CHECK_THROTTLE.'],
+            ['stk.mode', 'unset', 'How the payment prompt follows the payment: websocket (Reverb) or poll (asks the check route). Unset picks the websocket when Reverb is set up, else polling. Set with DARAJA_STK_MODE.'],
+            ['stk.poll_interval', '3 seconds', 'The seconds between two polls. Set with DARAJA_STK_POLL_INTERVAL.'],
+            ['stk.poll_duration', '300 seconds', 'How long the prompt keeps polling before it stops. Set with DARAJA_STK_POLL_DURATION.'],
+            ['stk.hooks', 'hooks.daraja.stk, hooks.daraja.confirmation', 'The route names of your own hooks, which the simulator posts to.'],
+            ['stk.simulate', 'off', 'When on, Daraja::stkPush() (which initiate() calls) sends nothing to Safaricom and makes up the answer. It does not affect the simulator panel of these docs (see Simulate a payment). It throws in production. Set with DARAJA_STK_SIMULATE.'],
+        ]" />
     </x-docs::section>
 @endsection

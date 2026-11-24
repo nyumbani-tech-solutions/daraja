@@ -235,7 +235,7 @@ class StkPushManager
             'reason' => $attempt['reason'],
             'phone' => $attempt['phone'],
             'timeout' => (int) config('daraja.stk.timeout', 120),
-            'mode' => config('daraja.stk.mode'),
+            'mode' => config('daraja.stk.mode') ?: null,
             'interval' => (int) config('daraja.stk.poll_interval', 3),
             'duration' => (int) config('daraja.stk.poll_duration', 300),
             'manual' => [

@@ -17,6 +17,11 @@ class StkPushAttempts
     public const REFERENCE_LENGTH = 12;
 
     /**
+     * The cache key of the ids of the latest attempts
+     */
+    public const RECENT_KEY = 'daraja.stk.recent';
+
+    /**
      * Store a new attempt, unless its id is already used
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
@@ -31,7 +36,49 @@ class StkPushAttempts
         //  Index the attempt
         $this->index($attempt);
 
+        //  Remember it for the simulator of the docs
+        $this->remember($attempt['id']);
+
         return true;
+    }
+
+    /**
+     * Get the latest attempts that are still remembered, newest first, for the simulator of the docs to pick from. Nothing is kept in production
+     *
+     * @return array<int, array>
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function recent(): array
+    {
+        return collect(cache()->get(self::RECENT_KEY, []))
+            ->map(fn (string $id) => $this->find($id))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Remember the id of an attempt among the latest ten, outside production
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    protected function remember(string $id): void
+    {
+        //  Nothing is kept in production
+        if (app()->isProduction()) {
+            return;
+        }
+
+        //  Put the id first and keep the latest ten
+        $ids = collect(cache()->get(self::RECENT_KEY, []))
+            ->prepend($id)
+            ->unique()
+            ->take(10)
+            ->values()
+            ->all();
+
+        cache()->put(self::RECENT_KEY, $ids, $this->expiry());
     }
 
     /**

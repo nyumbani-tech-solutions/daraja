@@ -10,6 +10,7 @@ use Nyumbani\Daraja\Enums\ConfirmationKind;
 use Nyumbani\Daraja\Enums\StkPushOutcome;
 use Nyumbani\Daraja\StkPushAttempts;
 use Nyumbani\Daraja\StkPushSimulator;
+use Symfony\Component\Routing\Exception\RouteNotFoundException;
 
 class StkPushSimulationController
 {
@@ -22,6 +23,23 @@ class StkPushSimulationController
         protected StkPushSimulator $simulator,
         protected StkPushAttempts $attempts
     ) {}
+
+    /**
+     * List the latest payments the app started, for the panel to pick the one to answer for
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function recent(): JsonResponse
+    {
+        //  Never in production
+        abort_if(app()->isProduction(), 404);
+
+        //  Describe each payment in a line
+        return response()->json(collect($this->attempts->recent())->map(fn (array $attempt) => [
+            'id' => $attempt['id'],
+            'label' => "{$attempt['reference']} · KES {$attempt['amount']} · {$attempt['status']}".($attempt['phone'] ? " · {$attempt['phone']}" : ''),
+        ])->all());
+    }
 
     /**
      * Post the result of the attempt's STK push to the app's STK callback, as Safaricom would
@@ -66,8 +84,8 @@ class StkPushSimulationController
      */
     protected function answer(Request $request, string $enum, callable $simulate): JsonResponse
     {
-        //  Answer only while pushes are simulated, and never in production
-        abort_if(app()->isProduction() || ! config('daraja.stk.simulate'), 404);
+        //  Never in production
+        abort_if(app()->isProduction(), 404);
 
         //  Validate what the page sent
         $data = $request->validate([
@@ -87,6 +105,10 @@ class StkPushSimulationController
             //  catch any errors
         } catch (LogicException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
+
+            //  A hook the app has not registered cannot be posted to
+        } catch (RouteNotFoundException) {
+            return response()->json(['message' => __('Your hooks are not registered: see daraja.stk.hooks.')], 422);
         }
     }
 }
