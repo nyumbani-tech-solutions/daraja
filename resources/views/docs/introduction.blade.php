@@ -33,6 +33,7 @@
     <x-docs::section id="choose" title="Which call do I need?">
         <x-docs::table :columns="['I want to...', 'Use', 'Your app then receives']" :rows="[
             ['Ask a customer to pay a specific amount now', 'stkPush()', 'One STK callback with the result.'],
+            ['Take a payment on screen, with live status and a pay-by-hand fallback', 'StkPushManager and the payment prompt of nyumbani/ui (see STK push)', 'An STK callback and a C2B confirmation, and the screen confirms once the money lands.'],
             ['Be told whenever anyone pays my paybill or till', 'registerC2BUrls()', 'A validation and a confirmation callback per payment.'],
             ['Fetch payments I may have missed', 'registerPullUrl(), pullTransactions()', 'A Pull notification, and the list you query.'],
         ]" />
@@ -40,7 +41,7 @@
 
     <x-docs::section id="explore" title="Read in this order">
         <div class="mt-4 grid gap-4 sm:grid-cols-2">
-            <x-docs::card title="1. Installation" href="{{ $docs->url('installation') }}">Require the package, set the environment and prove the credentials work.</x-docs::card>
+            <x-docs::card title="1. Installation" href="{{ $docs->url('installation') }}">Require the package, keep the credentials safe and prove the credentials work.</x-docs::card>
             <x-docs::card title="2. Configuration" href="{{ $docs->url('configuration') }}">What each key does, and why credentials are not config.</x-docs::card>
             <x-docs::card title="3. Walkthrough" href="{{ $docs->url('walkthrough') }}">Take a first payment: push, callback, mark paid, test.</x-docs::card>
             <x-docs::card title="4. Payments" href="{{ $docs->url('payments') }}">Every outgoing call with its arguments and responses.</x-docs::card>

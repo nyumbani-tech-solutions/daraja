@@ -309,7 +309,8 @@
     </x-docs::section>
 
     <x-docs::section id="local" title="Locally">
-        <p>Safaricom cannot reach your machine. Expose the app through a tunnel (Herd Share, Expose or ngrok), register the tunnel's addresses in the <strong>sandbox</strong> with <code>registerC2BUrls()</code>, and set <code>APP_URL</code> to the tunnel so <code>route('hooks.daraja.stk')</code> builds a public address. The guard is skipped in <code>local</code>, so the callbacks get through.</p>
+        <p>Safaricom cannot reach your machine. Expose the app through a tunnel (Herd Share, Expose or ngrok), register the tunnel's addresses with <code>registerC2BUrls()</code>, and set <code>APP_URL</code> to the tunnel so <code>route('hooks.daraja.stk')</code> builds a public address. The guard is skipped in <code>local</code>, so the callbacks get through.</p>
+        <p>Your app owns the hooks: the package registers none of them, only the middleware and the manager they call. With <code>DARAJA_STK_SIMULATE=true</code> the <code>&lt;x-nyumbani::stk-simulator&gt;</code> buttons post Safaricom-shaped payloads to them by route name (<code>daraja.stk.hooks</code>), so you can try the whole flow without a tunnel. See Develop without Safaricom on the STK push page.</p>
         <p>You do not need Safaricom to test your handlers. Post a payload yourself:</p>
         <x-docs::code title="tests/Feature/DarajaHookTest.php">
             use App\Jobs\SettleStkPaymentJob;

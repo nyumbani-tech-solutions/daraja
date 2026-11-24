@@ -5,7 +5,7 @@
 
 @section('content')
     <x-docs::section id="live" title="Live buttons">
-        <p>Several examples on this page have a button that calls Safaricom for real. They use the short code in your <code>.env</code> (<code>DARAJA_SHORT_CODE</code>, <code>DARAJA_CONSUMER_KEY</code>, <code>DARAJA_CONSUMER_SECRET</code>, <code>DARAJA_PASS_KEY</code> and, for a till, <code>DARAJA_TILL_NUMBER</code>) and always go to Safaricom's <strong>live</strong> environment, whatever <code>DARAJA_ENVIRONMENT</code> says. Nothing runs until you press the button.</p>
+        <p>Several examples on this page have a button that calls Safaricom for real. They use the short code in your <code>.env</code> (<code>DARAJA_SHORT_CODE</code>, <code>DARAJA_CONSUMER_KEY</code>, <code>DARAJA_CONSUMER_SECRET</code>, <code>DARAJA_PASS_KEY</code> and, for a till, <code>DARAJA_TILL_NUMBER</code>) and go to Safaricom's <strong>live</strong> API, the only one the package supports. Nothing runs until you press the button.</p>
         <x-docs::callout type="note" title="These are real calls">
             An STK push prompts a real phone, and registering C2B or Pull addresses changes your live short code. C2B addresses can only be registered once. The docs are available only in the local environment.
         </x-docs::callout>
@@ -63,6 +63,7 @@
             }
         </x-docs::code>
         <p>Save the <code>CheckoutRequestID</code> with your pending payment. The callback carries the same id, which is how you find the payment again.</p>
+        <p>For a customer waiting on a screen, do not wire the push, the callbacks and the screen by hand: <a href="{{ $docs->url('stk-push') }}" class="text-primary underline">STK push</a> describes the standard flow that does it.</p>
         <x-docs::callout type="warning" title="The pass key is required">
             Without <code>passKey</code> on the short code, <code>stkPush()</code> throws a <code>LogicException</code> before anything is sent. The password Safaricom checks is built from the short code, the pass key and a timestamp in East Africa Time, which the package does for you.
         </x-docs::callout>
@@ -75,7 +76,7 @@
     </x-docs::section>
 
     <x-docs::section id="c2b" title="C2B: hear about every payment to a paybill">
-        <p>Register the addresses Safaricom should call whenever someone pays your short code by hand (paybill and account number). Do this once per short code and environment, not on every request.</p>
+        <p>Register the addresses Safaricom should call whenever someone pays your short code by hand (paybill and account number). Do this once per short code, not on every request.</p>
         <x-docs::code>
             $response = $daraja->registerC2BUrls(
                 validationUrl: route('hooks.daraja.validation'),
@@ -148,7 +149,7 @@
 
     <x-docs::section id="errors" title="When something goes wrong">
         <x-docs::table :columns="['What you see', 'Why', 'What to do']" :rows="[
-            ['DarajaException: Could not get a Daraja access token', 'Daraja could not be reached, or the consumer key and secret do not match the environment.', 'Check DARAJA_ENVIRONMENT first, then the credentials. A sandbox key does not work in production.'],
+            ['DarajaException: Could not get a Daraja access token', 'Daraja could not be reached, or the consumer key and secret do not match.', 'Check the credentials. A sandbox key does not work: only production is supported.'],
             ['LogicException: An STK push needs the pass key', 'The ShortCode has no passKey.', 'Pass the short code\'s pass key.'],
             ['ResponseCode other than 0 on an STK push', 'Safaricom refused the request.', 'Read ResponseDescription in the body.'],
             ['STK push accepted but no callback arrives', 'The callback address is not public, or is blocked by the guard.', 'Use a tunnel locally and check the webhook log for a Rejected a Daraja request warning.'],
@@ -171,7 +172,7 @@
 
                 $shortCode = new ShortCode('174379', 'key', 'secret', passKey: 'pass');
 
-                $response = Daraja::for($shortCode)->sandbox()->stkPush('0712345678', 100, 'INV-1', 'Order payment', 'https://app.test/hooks/daraja/stk');
+                $response = Daraja::for($shortCode)->stkPush('0712345678', 100, 'INV-1', 'Order payment', 'https://app.test/hooks/daraja/stk');
 
                 expect($response->json('ResponseCode'))->toBe('0');
 

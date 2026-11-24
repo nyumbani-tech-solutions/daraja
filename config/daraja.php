@@ -3,27 +3,14 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Environment
+    | Base url
     |--------------------------------------------------------------------------
     |
-    | The Daraja environment every call is made against: "sandbox" or
-    | "production".
+    | The base url of the Daraja API. Only production is supported: there is
+    | no sandbox, so develop with DARAJA_STK_SIMULATE (see the stk block).
     |
     */
-    'environment' => env('DARAJA_ENVIRONMENT', 'production'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Base urls
-    |--------------------------------------------------------------------------
-    |
-    | The base url of the Daraja API for each environment.
-    |
-    */
-    'base_urls' => [
-        'sandbox' => 'https://sandbox.safaricom.co.ke',
-        'production' => 'https://api.safaricom.co.ke',
-    ],
+    'base_url' => 'https://api.safaricom.co.ke',
 
     /*
     |--------------------------------------------------------------------------
@@ -76,6 +63,32 @@ return [
     |
     */
     'skip_ip_check_in' => ['local', 'testing'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | STK push attempts
+    |--------------------------------------------------------------------------
+    |
+    | How long an attempt is remembered, in minutes, how long the screen waits
+    | for the payer to answer the prompt before it shows how to pay by hand,
+    | in seconds, and the least seconds between two "I've paid" checks of one
+    | attempt. With simulate on, a push
+    | is never sent to Safaricom and Daraja's answer is made up, so the
+    | callbacks must be posted by hand, or by the simulator routes the package
+    | then registers (daraja.simulate.stk and daraja.simulate.confirmation),
+    | which post to the hooks named below. It is refused in production.
+    |
+    */
+    'stk' => [
+        'ttl' => env('DARAJA_STK_TTL', 60),
+        'timeout' => env('DARAJA_STK_TIMEOUT', 120),
+        'check_throttle' => env('DARAJA_STK_CHECK_THROTTLE', 10),
+        'simulate' => env('DARAJA_STK_SIMULATE', false),
+        'hooks' => [
+            'stk' => 'hooks.daraja.stk',
+            'confirmation' => 'hooks.daraja.confirmation'
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

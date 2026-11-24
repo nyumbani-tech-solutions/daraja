@@ -3,6 +3,7 @@
 namespace Nyumbani\Daraja;
 
 use Carbon\CarbonInterface;
+use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -17,11 +18,6 @@ use Nyumbani\Daraja\Exceptions\DarajaException;
  */
 class Daraja
 {
-    /**
-     * The environment set on this client, which takes the place of the configured one
-     */
-    protected ?string $environment = null;
-
     /**
      * Create the client
      *
@@ -40,34 +36,6 @@ class Daraja
     }
 
     /**
-     * Make the calls against Daraja's live environment, whatever is configured
-     *
-     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
-     */
-    public function live(): static
-    {
-        //  Set the environment
-        $this->environment = 'production';
-
-        //  Return the client
-        return $this;
-    }
-
-    /**
-     * Make the calls against Daraja's sandbox, whatever is configured
-     *
-     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
-     */
-    public function sandbox(): static
-    {
-        //  Set the environment
-        $this->environment = 'sandbox';
-
-        //  Return the client
-        return $this;
-    }
-
-    /**
      * Get the OAuth access token, which is cached until shortly before it expires
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
@@ -75,7 +43,7 @@ class Daraja
     public function accessToken(): string
     {
         //  Build the cache key
-        $key = "daraja.token.{$this->currentEnvironment()}.{$this->shortCode->value}";
+        $key = "daraja.token.{$this->shortCode->value}";
 
         //  Return the cached token
         if ($token = Cache::get($key)) {
@@ -141,18 +109,18 @@ class Daraja
         string $description,
         string $callbackUrl,
     ): Response {
-        //  The pass key is what signs the request
-        if (! $this->shortCode->passKey) {
-            throw new LogicException('An STK push needs the pass key of the shortcode.');
-        }
+        //  Sign the request
+        ['Password' => $password, 'Timestamp' => $timestamp] = $this->stkSignature();
 
-        //  Daraja checks the password against the timestamp, which is in East Africa Time
-        $timestamp = now('Africa/Nairobi')->format('YmdHis');
+        //  Answer as Daraja would, without calling it, when simulating
+        if ($this->isSimulatingStkPush()) {
+            return $this->fakeStkPush();
+        }
 
         //  Send the request
         return $this->authorised()->post('mpesa/stkpush/v1/processrequest', [
             'BusinessShortCode' => $this->shortCode->value,
-            'Password' => base64_encode($this->shortCode->value.$this->shortCode->passKey.$timestamp),
+            'Password' => $password,
             'Timestamp' => $timestamp,
             'TransactionType' => $this->shortCode->transactionType(),
             'Amount' => (int) round($amount),
@@ -162,6 +130,25 @@ class Daraja
             'CallBackURL' => $callbackUrl,
             'AccountReference' => $accountReference,
             'TransactionDesc' => $description,
+        ]);
+    }
+
+    /**
+     * Ask Daraja what became of an STK push, for when its callback never arrived
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function stkQuery(string $checkoutRequestId): Response
+    {
+        //  Sign the request
+        ['Password' => $password, 'Timestamp' => $timestamp] = $this->stkSignature();
+
+        //  Send the request
+        return $this->authorised()->post('mpesa/stkpushquery/v1/query', [
+            'BusinessShortCode' => $this->shortCode->value,
+            'Password' => $password,
+            'Timestamp' => $timestamp,
+            'CheckoutRequestID' => $checkoutRequestId,
         ]);
     }
 
@@ -191,6 +178,64 @@ class Daraja
     }
 
     /**
+     * Check whether STK pushes are simulated, which is refused in production since no payer would be prompted
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    protected function isSimulatingStkPush(): bool
+    {
+        //  Simulating is off unless asked for
+        if (! config('daraja.stk.simulate')) {
+            return false;
+        }
+
+        //  A production app that skipped its pushes would never prompt a payer
+        if (app()->isProduction()) {
+            throw new LogicException('DARAJA_STK_SIMULATE must not be on in production.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Make the response Daraja gives to an accepted STK push, which never reaches Safaricom
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    protected function fakeStkPush(): Response
+    {
+        return new Response(new Psr7Response(200, ['Content-Type' => 'application/json'], json_encode([
+            'MerchantRequestID' => str()->random(4).'-'.random_int(1000000, 9999999).'-1',
+            'CheckoutRequestID' => 'ws_CO_'.now('Africa/Nairobi')->format('dmYHis').random_int(100000000, 999999999),
+            'ResponseCode' => '0',
+            'ResponseDescription' => 'Success. Request accepted for processing',
+            'CustomerMessage' => 'Success. Request accepted for processing',
+        ])));
+    }
+
+    /**
+     * Get the password and timestamp that sign an STK push or an STK query
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    protected function stkSignature(): array
+    {
+        //  The pass key is what signs the request
+        if (! $this->shortCode->passKey) {
+            throw new LogicException('An STK push needs the pass key of the shortcode.');
+        }
+
+        //  Daraja checks the password against the timestamp, which is in East Africa Time
+        $timestamp = now('Africa/Nairobi')->format('YmdHis');
+
+        //  Return the signature
+        return [
+            'Password' => base64_encode($this->shortCode->value.$this->shortCode->passKey.$timestamp),
+            'Timestamp' => $timestamp,
+        ];
+    }
+
+    /**
      * Get a request authorised with the access token
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
@@ -203,24 +248,13 @@ class Daraja
     }
 
     /**
-     * Get the environment the calls are made against, which is the configured one unless it was set
-     *
-     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
-     */
-    protected function currentEnvironment(): string
-    {
-        return $this->environment
-            ?? config('daraja.environment', 'production');
-    }
-
-    /**
-     * Get a request against the base url of the environment
+     * Get a request against the base url of Daraja
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
      */
     protected function request(): PendingRequest
     {
-        return Http::baseUrl(config("daraja.base_urls.{$this->currentEnvironment()}"))
+        return Http::baseUrl(config('daraja.base_url'))
             ->acceptJson()
             ->timeout(30);
     }

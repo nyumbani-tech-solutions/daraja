@@ -8,9 +8,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Nyumbani\Daraja\Daraja;
+use Nyumbani\Daraja\Enums\StkPushFailureReason;
+use Nyumbani\Daraja\Enums\StkPushStatus;
 use Nyumbani\Daraja\Http\Middleware\EnsureRequestIsFromSafaricom;
 use Nyumbani\Daraja\MsisdnResolver;
 use Nyumbani\Daraja\ShortCode;
+use Nyumbani\Daraja\StkPushAttempts;
 use Throwable;
 
 /**
@@ -74,6 +77,45 @@ class DarajaDemos
     }
 
     /**
+     * Show what an STK result code means for the attempt and for the payer's screen
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function stkResult(array $input): array
+    {
+        //  A paid push moves on to waiting for the C2B, anything else fails
+        $code = (int) ($input['code'] ?? -1);
+        $status = $code === 0 ? StkPushStatus::PAID : StkPushStatus::FAILED;
+        $reason = $code === 0 ? null : StkPushFailureReason::fromResultCode($code);
+
+        return [
+            $this->row('Status', $status->value, $code === 0),
+            $this->row('Reason', $reason?->value ?? 'none'),
+            $this->row('Payer is shown how to pay by hand', $status->showsManualInstructions() ? 'Yes' : 'No', $status->showsManualInstructions()),
+        ];
+    }
+
+    /**
+     * Show the reference an STK push sends, and the references a payment can carry to match the attempt
+     *
+     * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
+     */
+    public function stkReference(array $input): array
+    {
+        //  Daraja accepts twelve characters at most
+        $reference = trim($input['reference'] ?? '');
+        $sent = str($reference)->limit(StkPushAttempts::REFERENCE_LENGTH, '')->toString();
+
+        return [
+            $this->row('Reference you gave', $reference !== '' ? $reference : 'none, so a 12 character token is made'),
+            $this->row('AccountReference sent to Daraja', $sent !== '' ? $sent : 'the token'),
+            $this->row('BillRefNumber of the STK payment', $sent !== '' ? $sent : 'the token'),
+            $this->row('BillRefNumber of a manual payment', $reference !== '' ? $reference : 'the token'),
+            $this->row('Matches the attempt', 'Both', true),
+        ];
+    }
+
+    /**
      * Build the request that registers the C2B validation and confirmation addresses
      *
      * @author Alvin G. Kaburu <geekaburu@nyumbanitech.co.ke>
@@ -126,7 +168,7 @@ class DarajaDemos
             ]);
 
             //  Run the real call for a demo short code
-            $call(Daraja::for(new ShortCode('600000', 'key', 'secret', 'demo-pass-key', $till))->sandbox());
+            $call(Daraja::for(new ShortCode('600000', 'key', 'secret', 'demo-pass-key', $till)));
 
             //  Read the request that was sent
             $sent = collect(Http::recorded())->map(fn (array $pair) => $pair[0])->first(fn ($request) => str_contains($request->url(), $endpoint));
@@ -149,7 +191,7 @@ class DarajaDemos
     public function liveToken(array $input): array
     {
         return $this->live($input, fn () => $this->describe(
-            Http::baseUrl(config('daraja.base_urls.production'))
+            Http::baseUrl(config('daraja.base_url'))
                 ->acceptJson()
                 ->withBasicAuth(config('daraja.docs.consumer_key'), config('daraja.docs.consumer_secret'))
                 ->get('oauth/v1/generate', ['grant_type' => 'client_credentials'])
@@ -246,7 +288,7 @@ class DarajaDemos
             consumerSecret: $config['consumer_secret'],
             passKey: $config['pass_key'] ?? null,
             tillNumber: filled($config['till_number'] ?? null) ? $config['till_number'] : null,
-        ))->live();
+        ));
 
         //  Call Safaricom and show what it answered
         try {
@@ -256,7 +298,6 @@ class DarajaDemos
         }
 
         return [
-            $this->row('Environment', 'live (production)'),
             ...collect($answer)->map(fn ($value, $label) => $this->row($label, $value, $label === 'HTTP status' ? str_starts_with((string) $value, '2') : null))->values()->all(),
         ];
     }

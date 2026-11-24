@@ -43,6 +43,11 @@ Keep the raw payload first (type, payload, IP), then do the slow work in a queue
 ## How the middleware decides
 It skips the check in `daraja.skip_ip_check_in` environments, lets through an exact match in `daraja.allowed_ips`, and otherwise logs `Rejected a Daraja request` and answers HTTP 200 with `C2B00016`. It checks the sender's address only: Daraja callbacks carry no signature, so still validate the payload. Behind a proxy or load balancer, configure Laravel's trusted proxies, or every request looks like it comes from the proxy and is rejected.
 
+## Telling a waiting payer
+Inside the STK route call `$stkPush->handleCallback($request->all())`; it moves the attempt to `paid` or `failed` and broadcasts the status. Inside the C2B confirmation route, record the payment yourself first (idempotently on `TransID`), then call `$stkPush->confirmPayment($request->all())`, which matches the attempt by receipt or reference, confirms it and broadcasts. It does nothing when no payer waits, so fulfil the order from the payment you recorded, not from an event: the package fires none besides the broadcast. Both are safe to repeat, and `$stkPush` is the injected `StkPushManager` (there is no facade).
+- A payment below the attempt's amount is not confirmed, and a payment that already confirmed another attempt is refused. Your controller still records every C2B payment.
+- Pass the STK route as `callbackUrl` to `initiate()` with `route()`. Register the C2B urls with `registerC2BUrls()` once.
+
 ## Payload shapes
 - STK: `Body.stkCallback` with `CheckoutRequestID`, `ResultCode` (`0` paid, `1032` cancelled, `1037` timeout, `2001` wrong PIN) and, on success, `CallbackMetadata.Item` as `Name`/`Value` pairs (`Amount`, `MpesaReceiptNumber`, `PhoneNumber`). Read it with `collect($items)->pluck('Value', 'Name')`.
 - C2B: flat fields `TransID`, `TransAmount`, `BillRefNumber`, `BusinessShortCode`, `MSISDN` (which may arrive as a SHA-256 hash: resolve it with `MsisdnResolver`, see `nyumbani-daraja-msisdn`). Refuse a validation with `C2B00011` to `C2B00016`.
@@ -53,7 +58,7 @@ It skips the check in `daraja.skip_ip_check_in` environments, lets through an ex
 - Validation hooks decide whether a payment is accepted. Reject with a non-zero `ResultCode` only when the account reference is unknown.
 
 ## Local development
-Safaricom cannot reach a local machine. Expose the app through a tunnel, register the tunnel URLs with `registerC2BUrls()` or `registerPullUrl()` in the sandbox, and test handlers with `$this->postJson('/hooks/daraja/confirmation', $payload)`, which passes the guard in `testing`.
+Safaricom cannot reach a local machine. Either set `DARAJA_STK_SIMULATE=true` (no push is sent, and the `<x-nyumbani::stk-simulator>` buttons post the two payloads to your own routes), or expose the app through a tunnel, register the tunnel URLs with `registerC2BUrls()` or `registerPullUrl()` in the sandbox, and test handlers with `$this->postJson('/hooks/daraja/confirmation', $payload)`, which passes the guard in `testing`.
 
 ## Testing
 Test the guard in a non-skipped environment by setting `daraja.skip_ip_check_in` to `[]`: an unknown IP gets `C2B00016`, an allowed IP reaches the controller.

@@ -12,7 +12,7 @@
             SettleStkPaymentJob         finds the Payment by CheckoutRequestID and settles it
             payments table              checkout_request_id, status, receipt_number
         </x-docs::code>
-        <p>Do <a href="{{ $docs->url('installation') }}" class="text-primary underline">Installation</a> first, so <code>DARAJA_ENVIRONMENT=sandbox</code> is set and your credentials work.</p>
+        <p>Do <a href="{{ $docs->url('installation') }}" class="text-primary underline">Installation</a> first, so your credentials work.</p>
     </x-docs::section>
 
     <x-docs::section id="table" title="1. A table for payments">
@@ -98,10 +98,9 @@
         <p>Store the raw payload, queue the job and answer at once. The full controller and job are on the <a href="{{ $docs->url('webhooks') }}#answer" class="text-primary underline">Webhooks</a> page, along with the shape of the payload and what each <code>ResultCode</code> means.</p>
     </x-docs::section>
 
-    <x-docs::section id="try" title="5. Try it in the sandbox">
+    <x-docs::section id="try" title="5. Try it without Safaricom">
         <ol>
-            <li>Expose the app through a tunnel and set <code>APP_URL</code> to its address, so the callback address is public.</li>
-            <li>Press the button. The sandbox does not message a real phone; use Safaricom's simulator, or post a sample payload at <code>hooks/daraja/stk</code> yourself.</li>
+            <li>Set <code>DARAJA_STK_SIMULATE=true</code> and press the button. No phone rings; answer with the simulator buttons, which post to <code>hooks/daraja/stk</code> for you.</li>
             <li>Watch the <code>payments</code> row move from <code>pending</code> to <code>paid</code> and the receipt number appear.</li>
         </ol>
     </x-docs::section>
@@ -112,7 +111,7 @@
 
     <x-docs::section id="live" title="7. Go live">
         <ul>
-            <li>Set <code>DARAJA_ENVIRONMENT=production</code> and use the production short code's key, secret and pass key. Sandbox credentials do not work in production.</li>
+            <li>Set <code>DARAJA_STK_SIMULATE=false</code> and use the production short code's key, secret and pass key.</li>
             <li>Register your production callback addresses with Safaricom.</li>
             <li>Leave <code>daraja.skip_ip_check_in</code> alone: it only skips the guard in <code>local</code> and <code>testing</code>.</li>
         </ul>

@@ -1,15 +1,15 @@
 @extends('docs::layout')
 
 @section('page', 'Configuration')
-@section('lead', 'Five keys, all with working defaults, and credentials that deliberately live elsewhere.')
+@section('lead', 'Six keys, all with working defaults, and credentials that deliberately live elsewhere.')
 
 @section('content')
     <x-docs::section id="options" title="Options">
         <p>Apps inherit these defaults. Publish the file with <code>php artisan vendor:publish --tag=daraja-config</code> only to change one.</p>
         <x-docs::table :columns="['Key', 'Default', 'What it does']" :rows="[
-            ['environment', 'production', 'sandbox or production. Set with DARAJA_ENVIRONMENT.'],
-            ['base_urls', 'Safaricom sandbox and live', 'The base address of the API for each environment.'],
+            ['base_url', 'https://api.safaricom.co.ke', 'The base address of the API. Only production is supported.'],
             ['msisdn_resolver', 'msisdn.nyumbani.ke, no token, 5 seconds', 'Where MsisdnResolver turns a hashed MSISDN back into a number. Set with DARAJA_MSISDN_RESOLVER_URL, DARAJA_MSISDN_RESOLVER_TOKEN and DARAJA_MSISDN_RESOLVER_TIMEOUT. See Webhooks.'],
+            ['stk', '60 minutes, 120 seconds, 10 seconds, off', 'How long an STK push attempt is remembered, how long the screen waits for the payer to answer, the least seconds between two I have paid checks, and whether pushes are simulated instead of sent (refused in production). Set with DARAJA_STK_TTL, DARAJA_STK_TIMEOUT, DARAJA_STK_CHECK_THROTTLE and DARAJA_STK_SIMULATE. See Payments.'],
             ['allowed_ips', 'Safaricom addresses', 'The addresses EnsureRequestIsFromSafaricom lets through.'],
             ['skip_ip_check_in', 'local, testing', 'Environments where the middleware accepts any address, since Safaricom cannot reach a local machine.'],
         ]" />
@@ -17,17 +17,6 @@
 
     <x-docs::section id="docs-credentials" title="Credentials for the docs">
         <p>The live buttons in these docs read <code>daraja.docs.*</code>, which come from <code>DARAJA_SHORT_CODE</code>, <code>DARAJA_CONSUMER_KEY</code>, <code>DARAJA_CONSUMER_SECRET</code>, <code>DARAJA_PASS_KEY</code> and <code>DARAJA_TILL_NUMBER</code>. Nothing else in the package reads them: your app still builds its own <code>ShortCode</code>.</p>
-    </x-docs::section>
-
-    <x-docs::section id="environment" title="Choosing the environment">
-        <p>The environment decides which Safaricom address every call goes to. It is the configured one unless a client overrides it, and the override wins.</p>
-        <x-docs::code title="Per client">
-            use Nyumbani\Daraja\Daraja;
-
-            Daraja::for($shortCode)->sandbox()->stkPush(...);   // always the sandbox
-            Daraja::for($shortCode)->live()->stkPush(...);      // always production
-            Daraja::for($shortCode)->stkPush(...);              // whatever DARAJA_ENVIRONMENT says
-        </x-docs::code>
     </x-docs::section>
 
     <x-docs::section id="short-code" title="Credentials are not config">
@@ -75,6 +64,6 @@
     </x-docs::section>
 
     <x-docs::section id="token" title="The access token">
-        <p>Every call needs an OAuth token. The client fetches it for you the first time, and caches it for 55 minutes in your default cache store, per environment and short code. A failed token request is never cached. Calls time out after 30 seconds.</p>
+        <p>Every call needs an OAuth token. The client fetches it for you the first time, and caches it for 55 minutes in your default cache store, per short code. A failed token request is never cached. Calls time out after 30 seconds.</p>
     </x-docs::section>
 @endsection

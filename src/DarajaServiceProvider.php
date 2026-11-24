@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Nyumbani\Daraja\Docs\DarajaDemos;
 use Nyumbani\Daraja\Docs\ReceivedHookController;
+use Nyumbani\Daraja\Http\Controllers\StkPushSimulationController;
 use Nyumbani\Daraja\Http\Middleware\EnsureRequestIsFromSafaricom;
 use Nyumbani\Docs\Docs;
 use Nyumbani\Docs\DocsRegistry;
@@ -25,6 +26,9 @@ class DarajaServiceProvider extends ServiceProvider
 
         //  Load the configuration file
         $this->mergeConfigFrom(__DIR__.'/../config/daraja.php', 'daraja');
+
+        //  Keep one STK push manager, which holds what the app registered on it
+        $this->app->singleton(StkPushManager::class);
     }
 
     /**
@@ -38,6 +42,14 @@ class DarajaServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/daraja.php' => config_path('daraja.php'),
         ], 'daraja-config');
+
+        //  Add the routes that answer for Safaricom, which refuse to run unless pushes are simulated, and never exist in production
+        if (! $this->app->isProduction()) {
+            Route::middleware('web')->prefix('daraja/simulate')->name('daraja.simulate.')->group(function () {
+                Route::post('stk', [StkPushSimulationController::class, 'stk'])->name('stk');
+                Route::post('confirmation', [StkPushSimulationController::class, 'confirmation'])->name('confirmation');
+            });
+        }
 
         //  Add the docs, which Nyumbani Docs serves, when it is installed
         if (class_exists(DocsRegistry::class)) {
@@ -67,12 +79,15 @@ class DarajaServiceProvider extends ServiceProvider
             ]],
             ['title' => 'Using Daraja', 'pages' => [
                 'payments' => 'Payments',
+                'stk-push' => 'STK push',
                 'webhooks' => 'Webhooks',
             ]],
         ], 'daraja::docs'))
             ->demo('phone', $demos->phone(...))
             ->demo('short-code', $demos->shortCode(...))
             ->demo('stk-push', $demos->stkPush(...))
+            ->demo('stk-result', $demos->stkResult(...))
+            ->demo('stk-reference', $demos->stkReference(...))
             ->demo('register-c2b', $demos->registerC2b(...))
             ->demo('register-pull', $demos->registerPull(...))
             ->demo('pull', $demos->pull(...))

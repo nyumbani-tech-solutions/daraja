@@ -15,10 +15,9 @@ A small Laravel client for Safaricom's Daraja API: STK push, C2B URL registratio
 composer require nyumbani/daraja
 ```
 
-2. Set the environment in `.env`. Credentials normally live wherever your app keeps them (see Short code below); these keys feed the local docs only:
+2. Set the credentials in `.env`. Credentials normally live wherever your app keeps them (see Short code below); these keys feed the local docs only:
 
 ```
-DARAJA_ENVIRONMENT=sandbox
 DARAJA_SHORT_CODE=
 DARAJA_CONSUMER_KEY=
 DARAJA_CONSUMER_SECRET=
@@ -27,11 +26,15 @@ DARAJA_TILL_NUMBER=
 DARAJA_MSISDN_RESOLVER_URL=https://msisdn.nyumbani.ke/api/v1
 DARAJA_MSISDN_RESOLVER_TOKEN=
 DARAJA_MSISDN_RESOLVER_TIMEOUT=5
+DARAJA_STK_TTL=60
+DARAJA_STK_TIMEOUT=120
+DARAJA_STK_CHECK_THROTTLE=10
+DARAJA_STK_SIMULATE=false
 ```
 
 The `DARAJA_MSISDN_RESOLVER_*` keys are read by the package itself (see Masked numbers below); the token is a Sanctum bearer token issued to your app.
 
-3. Optionally publish the configuration (the Safaricom IP allow-list and the environment switch):
+3. Optionally publish the configuration (the Safaricom IP allow-list and the base url):
 
 ```
 php artisan vendor:publish --tag=daraja-config
@@ -41,13 +44,7 @@ php artisan vendor:publish --tag=daraja-config
 
 ## Short code
 
-Set the environment, `sandbox` or `production`, in your `.env` (it defaults to `production`):
-
-```
-DARAJA_ENVIRONMENT=sandbox
-```
-
-To use another environment for one client, call `live()` or `sandbox()`: `Daraja::for($shortCode)->sandbox()`.
+Every call goes to Safaricom's production API (`daraja.base_url`). There is no sandbox, so develop with `DARAJA_STK_SIMULATE=true` (see below) and fake the HTTP client in tests.
 
 Build a `ShortCode` wherever your credentials live (env, config or a database row):
 
@@ -77,6 +74,33 @@ $daraja->pullTransactions();           // last 48 hours, or pass from and to
 ```
 
 Each call returns Laravel's HTTP client response, so use `successful()`, `failed()` and `json()`. Daraja can answer 200 with a failure code, so also check `ResponseCode` (`0` for an STK push, `1000` for the Pull calls).
+
+## The standard STK push flow
+
+For a payer waiting on a screen, `StkPushManager` starts the push, takes the STK callback and the C2B confirmation, and broadcasts `StkPushStatusChanged` on the public channel `stk.{id}`. It supports a paybill only, keeps attempts in the cache, and needs a queue worker for the broadcast.
+
+Inject `StkPushManager` where you need it. There is no facade.
+
+```php
+use Nyumbani\Daraja\StkPushManager;
+
+//  public function store(StkPushManager $stkPush)
+$attempt = $stkPush->initiate(
+    shortCode: $shortCode,
+    phone: $phone,
+    amount: $amount,
+    description: 'Invoice payment',
+    callbackUrl: route('hooks.daraja.stk'),
+    reference: $invoice->number,
+);
+
+return view('invoices.paying', ['attempt' => $stkPush->contract($attempt)]);
+
+$stkPush->handleCallback($request->all());   // in the STK route
+$stkPush->confirmPayment($request->all());   // in the C2B confirmation route, after recording the payment
+```
+
+Register the "I've paid" resolver once in a service provider's `boot()`, with the static `StkPushManager::resolvePaymentUsing(fn (array $attempt) => ...)`. The package fires no events but the `StkPushStatusChanged` broadcast the screen follows: fulfil orders in your C2B confirmation route, from the payment you record there, never from the STK result. The `DARAJA_STK_TTL`, `DARAJA_STK_TIMEOUT` (how long the screen waits for the payer) and `DARAJA_STK_CHECK_THROTTLE` keys tune the timings. Set `DARAJA_STK_SIMULATE=true` to skip Safaricom: `Daraja::stkPush()` then makes up Daraja's answer (checkout and merchant request ids) and nothing is sent, so `initiate()` works as usual. The package then registers `daraja.simulate.stk` and `daraja.simulate.confirmation` (never in production, 404 unless simulating), which post Safaricom-shaped payloads to *your* hooks, named by `daraja.stk.hooks` (default `hooks.daraja.stk` and `hooks.daraja.confirmation`; the app declares them, the package does not). Put `<x-nyumbani::stk-simulator :$attempt />` from `nyumbani/ui` beside the payment prompt for the buttons, or inject `StkPushSimulator`. `Daraja::stkPush()` throws in production when the flag is on. A payment confirms one attempt only, the contract carries the waiting time (`DARAJA_STK_TIMEOUT`) to the payment prompt of `nyumbani/ui`, and a lost STK callback is not chased: the screen times out and the payer can press "I have paid, check". See the STK push page of the docs.
 
 ## Receiving payments
 
